@@ -276,6 +276,7 @@ existing_value() { # $1 env name, $2 secret name
 }
 
 HELM_SECRET_ARGS=()
+SECRETS_CHANGED=0
 K8S_ENV_FILE="$WORK/k8s-secrets.env"; : > "$K8S_ENV_FILE"; chmod 600 "$K8S_ENV_FILE"
 if [ "$SECRETS_MODE" = "secretmanager" ]; then
   gcloud iam service-accounts describe "$GSA" >/dev/null 2>&1 || gcloud iam service-accounts create "$GSA_NAME" --display-name "Pehle Aap prod (reads secrets)" --quiet
@@ -302,14 +303,17 @@ for spec in $SECRET_SPECS; do
     full="$SECRET_PREFIX$sname"
     if ! gcloud secrets describe "$full" >/dev/null 2>&1 </dev/null; then
       printf %s "$val" | gcloud secrets create "$full" --replication-policy=automatic --data-file=- --quiet >/dev/null
+      SECRETS_CHANGED=1
       ok "$envk → Secret Manager $full (created, $src)"
     elif [ "$(existing_value "$envk" "$sname")" != "$val" ]; then
       printf %s "$val" | gcloud secrets versions add "$full" --data-file=- --quiet >/dev/null
+      SECRETS_CHANGED=1
       ok "$envk → Secret Manager $full (new version)"
     else
       ok "$envk → Secret Manager $full (unchanged)"
     fi
   else
+    [ "$(existing_value "$envk" "$sname")" = "$val" ] || SECRETS_CHANGED=1
     printf '%s=%s\n' "$envk" "$val" >> "$K8S_ENV_FILE"
     ok "$envk ($src)"
   fi
@@ -402,6 +406,21 @@ if [ "$ESO" = true ]; then
     }
   fi
   ok "secrets synced"
+  if [ "$SECRETS_CHANGED" = "1" ]; then
+    # Pull the new Secret Manager versions now instead of at the hourly refresh.
+    BEFORE="$(kubectl get externalsecret pehle-aap-secrets -n "$NAMESPACE" -o jsonpath='{.status.refreshTime}' 2>/dev/null || true)"
+    kubectl annotate externalsecret pehle-aap-secrets -n "$NAMESPACE" force-sync="$(date +%s)" --overwrite >/dev/null
+    for i in $(seq 1 24); do
+      [ "$(kubectl get externalsecret pehle-aap-secrets -n "$NAMESPACE" -o jsonpath='{.status.refreshTime}' 2>/dev/null || true)" != "$BEFORE" ] && break
+      sleep 5
+    done
+    ok "new secret values pulled from Secret Manager"
+  fi
+fi
+
+if [ "$SECRETS_CHANGED" = "1" ] && kubectl get deployment pehle-aap -n "$NAMESPACE" >/dev/null 2>&1; then
+  kubectl rollout restart deployment/pehle-aap -n "$NAMESPACE" >/dev/null   # pods read secrets only at start
+  ok "pods restarting to pick up changed secrets"
 fi
 
 info "waiting for pods (Autopilot may add nodes first: up to ~10 minutes)"
