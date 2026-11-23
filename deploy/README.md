@@ -1,5 +1,9 @@
 # Deploying Pehle Aap (GKE Autopilot)
 
+**Stage 2 upgrade (on top of a running Stage 1):** `bash deploy/deploy-stage2.sh` — checks,
+backup, deploy, super admin, automatic verification. Roll back with `bash deploy/rollback-stage2.sh`
+(helm rollback + `deploy/stage2-down.sql`, which restores the Stage 1 schema and keeps all data).
+
 **Quick path (production only, one command):** `bash deploy/gcp-deploy.sh` — reads `.env.local`,
 creates or reuses everything below (APIs, registry, Autopilot cluster, static IP, Secret Manager +
 External Secrets, migrations via `npm run migrate`, Cloud Build image, helm release) and is safe to

@@ -19,6 +19,7 @@ Next.js 15 (App Router) · TypeScript strict · Tailwind v4 · Zod · Supabase P
 | `npm run grant:super-admin -- <email>` | make an existing staff user a super admin (needs `DATABASE_URL`) |
 | `npx tsx scripts/pregen-tts.ts` | pre-generate TV announcements 1–300 into the private `tts` bucket (costs Sarvam calls) |
 | `bash deploy/gcp-deploy.sh` | one-command production deploy to GKE (see `deploy/README.md`) |
+| `bash deploy/deploy-stage2.sh` / `bash deploy/rollback-stage2.sh` | Stage 1 → Stage 2 upgrade with checks and verification / reverse it (data kept) |
 | deploy / rollback | `deploy/README.md` |
 
 ## Rules
