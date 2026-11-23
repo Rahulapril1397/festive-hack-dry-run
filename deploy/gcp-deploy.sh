@@ -307,7 +307,7 @@ for spec in $SECRET_SPECS; do
     HELM_SECRET_ARGS+=(--set "externalSecrets.keys.$envk=null")
     IFS=$'\n'; continue
   fi
-  [ "$kind" = "migrate" ] && HELM_SECRET_ARGS+=(--set "externalSecrets.keys.$envk=null")
+  # migrate-kind secrets (DATABASE_URL) are not in the app's key list at all — nothing to remove.
   if [ "$SECRETS_MODE" = "secretmanager" ]; then
     full="$SECRET_PREFIX$sname"
     if ! gcloud secrets describe "$full" >/dev/null 2>&1 </dev/null; then

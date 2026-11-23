@@ -28,12 +28,13 @@ WORK="$ROOT/.deploy"
 mkdir -p "$WORK"
 export PATH="$WORK/bin:$PATH" KUBECONFIG="$WORK/kubeconfig"
 
-PROJECT=""; SUPER_ADMIN=""; EXTRA=()
+PROJECT=""; SUPER_ADMIN=""; EXTRA=(); YES=0
 for a in "$@"; do
   case "$a" in
     --project=*) PROJECT="${a#*=}" ;;
     --super-admin=*) SUPER_ADMIN="${a#*=}" ;;
     --skip-build|--skip-backup) EXTRA+=("$a") ;;
+    -y|--yes) YES=1 ;;  # no prompts: defaults, and "Continue? yes"
     -h|--help) sed -n '2,22p' "$0"; exit 0 ;;
     *) echo "Unknown option: $a (try --help)"; exit 2 ;;
   esac
@@ -48,6 +49,7 @@ fail() { printf "  ${R}✗${N} %s\n" "$*"; FAILED=$((FAILED + 1)); }
 die()  { printf "\n${R}✗ %s${N}\n" "$*" >&2; exit 1; }
 ask()  { # prompt on the terminal; without one (CI), fall back to the default answer
   local a=""
+  [ "$YES" = "1" ] && { echo "${2:-}"; return; }
   if { exec 3</dev/tty; } 2>/dev/null; then read -r -p "  ? $1 " a <&3 || true; exec 3<&-; fi
   echo "${a:-${2:-}}"
 }
@@ -162,7 +164,7 @@ cat <<EOF
     app        new image, 2 pods, PinkyBua on Sarvam, live Sarvam + Flagsmith
     downtime   staff sign-in may fail for 1–3 minutes during the switch; guests and TV keep working
 EOF
-A="$(ask "Continue? [y/N]:" n)"
+A="$(ask "Continue? [y/N]:" "$([ "$YES" = 1 ] && echo y || echo n)")"
 case "$A" in y|Y|yes|YES) ;; *) echo "  Cancelled. Nothing changed."; exit 0 ;; esac
 
 # ══════════════════════════════════════════════════════════════════════════════════════════════
