@@ -9,6 +9,8 @@ serviceAccount:
 externalSecrets:
   projectId: PROJECT
   prefix: prod-
+# Small enough that 2 replicas fit on existing Autopilot nodes (new projects have 250 GB regional
+# SSD quota = 2 nodes' boot disks). Raise once the quota is increased.
 resources:
-  requests: { cpu: 500m, memory: 1Gi }
-  limits: { cpu: "1", memory: 1Gi }
+  requests: { cpu: 250m, memory: 512Mi }
+  limits: { cpu: 500m, memory: 512Mi }

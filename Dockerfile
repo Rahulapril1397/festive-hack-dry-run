@@ -19,10 +19,11 @@ ENV NODE_ENV=production \
     PORT=8080 \
     HOSTNAME=0.0.0.0 \
     GIT_SHA=${GIT_SHA}
-RUN addgroup -S app && adduser -S app -G app
-COPY --from=build --chown=app:app /app/.next/standalone ./
-COPY --from=build --chown=app:app /app/.next/static ./.next/static
-COPY --from=build --chown=app:app /app/public ./public
-USER app
+# Numeric uid/gid so Kubernetes runAsNonRoot can verify the user.
+RUN addgroup -S -g 1001 app && adduser -S -u 1001 -G app app
+COPY --from=build --chown=1001:1001 /app/.next/standalone ./
+COPY --from=build --chown=1001:1001 /app/.next/static ./.next/static
+COPY --from=build --chown=1001:1001 /app/public ./public
+USER 1001:1001
 EXPOSE 8080
 CMD ["node", "server.js"]
