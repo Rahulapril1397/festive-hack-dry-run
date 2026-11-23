@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
   const { next } = await searchParams;
-  const safeNext = next?.startsWith("/") && !next.startsWith("//") ? next : "/stage";
+  const safeNext = next?.startsWith("/") && !next.startsWith("//") ? next : "/";
   if (await getSession()) redirect(safeNext);
 
   // Quick-login is a non-prod convenience for the seeded demo users (scripts/seed.ts).

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { db } from "@/lib/db/service";
-import { DemoBanner } from "@/components/DemoBanner";
+import { DemoBanner } from "@/components/shell/DemoBanner";
 import { CheckinForm } from "./CheckinForm";
 
 export const dynamic = "force-dynamic";
