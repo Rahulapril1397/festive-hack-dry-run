@@ -3,7 +3,8 @@
 # Stage 2 upgrade of Pehle Aap on GCP, on top of a running Stage 1 (production only).
 #
 #   bash deploy/deploy-stage2.sh
-#   bash deploy/deploy-stage2.sh --project=festive-hack-dry-run --super-admin=admin@demo.pehleaap.test
+#   bash deploy/deploy-stage2.sh --project=festive-hack-dry-run --super-admin=rahul@demo.pehleaap.test
+# First install or redeploy of Stage 1: deploy/deploy-stage1.sh. Undo Stage 2: deploy/rollback-stage2.sh.
 #
 # What it does, in order:
 #   1. Checks: tools, gcloud login, project, .env.local (Supabase, Sarvam, Flagsmith keys), and
@@ -130,7 +131,15 @@ if [ -z "$SUPER_ADMIN" ]; then
 fi
 SUPER_ADMIN="$(printf %s "$SUPER_ADMIN" | tr 'A-Z' 'a-z')"
 EXISTS="$(db_value "select count(*)::text v from app_user where lower(email) = '$(printf %s "$SUPER_ADMIN" | sed "s/'/''/g")'")"
-[ "$EXISTS" = "1" ] || die "$SUPER_ADMIN is not a staff user in this database. Use an existing login (e.g. admin@demo.pehleaap.test)."
+if [ "$EXISTS" != "1" ]; then
+  warn "$SUPER_ADMIN has no login yet"
+  A="$(ask "Create a login for $SUPER_ADMIN now (a strong password is generated and shown once)? [y/N]:" n)"
+  case "$A" in
+    y|Y|yes|YES) node scripts/create-staff-user.mjs "$SUPER_ADMIN" || die "Could not create the login" ;;
+    *) die "Pick an existing login (e.g. admin@demo.pehleaap.test) or let the script create one." ;;
+  esac
+  echo "  ${B}Save that password now — it is not stored anywhere else.${N}"
+fi
 ok "super admin will be: $SUPER_ADMIN"
 
 cat <<EOF

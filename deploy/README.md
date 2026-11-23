@@ -1,5 +1,15 @@
 # Deploying Pehle Aap (GKE Autopilot)
 
+**Per stage (recommended):**
+
+| Script | Use |
+|---|---|
+| `bash deploy/deploy-stage1.sh --project=…` | first install, or redeploy, of the code at tag `stage-1` (built from `.deploy/stage1-src`; refuses if prod is on Stage 2) |
+| `bash deploy/deploy-stage2.sh --project=…` | upgrade a running Stage 1 to Stage 2 (or redeploy Stage 2); creates the super admin login if needed |
+| `bash deploy/rollback-stage2.sh --project=…` | Stage 2 → Stage 1 (only acts if prod is on Stage 2) |
+
+`deploy/gcp-deploy.sh` is the engine both stage scripts call.
+
 **Stage 2 upgrade (on top of a running Stage 1):** `bash deploy/deploy-stage2.sh` — checks,
 backup, deploy, super admin, automatic verification. Roll back with `bash deploy/rollback-stage2.sh`
 (helm rollback + `deploy/stage2-down.sql`, which restores the Stage 1 schema and keeps all data).
