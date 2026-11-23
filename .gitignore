@@ -11,3 +11,6 @@ test-results/
 coverage/
 .DS_Store
 .deploy/
+__pycache__/
+*.pyc
+.playwright-mcp/

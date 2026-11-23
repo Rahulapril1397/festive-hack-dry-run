@@ -11,3 +11,6 @@ test-results/
 coverage/
 *.tsbuildinfo
 .deploy/
+.claude/
+.playwright-mcp/
+design-system/

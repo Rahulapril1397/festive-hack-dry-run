@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { FamilyRow } from "@/domain/host/queries";
+import { copyText } from "@/components/shell/copyText";
 
 type Ev = { id: string; name: string };
 const CELL: Record<string, string> = { yes: "bg-green-100 text-green-900", no: "bg-stone-200 text-stone-600", pending: "text-stone-400" };
@@ -71,6 +72,7 @@ function FamilyRowView({ f, events, can, editing, onEdit }: { f: FamilyRow; even
   const router = useRouter();
   const [link, setLink] = useState(f.link);
   const [note, setNote] = useState<string | null>(null);
+  const [manual, setManual] = useState(false); // copy blocked → show the link to copy by hand
   const flash = (t: string) => {
     setNote(t);
     setTimeout(() => setNote(null), 2500);
@@ -98,7 +100,16 @@ function FamilyRowView({ f, events, can, editing, onEdit }: { f: FamilyRow; even
             {can.rsvp && <button className="underline" onClick={onEdit}>{editing ? "close" : "edit RSVP"}</button>}
             {can.write && link && (
               <>
-                <button className="ml-2 underline" onClick={async () => { await navigator.clipboard.writeText(link).catch(() => {}); flash("Link copied"); }}>copy link</button>
+                <button
+                  className="ml-2 underline"
+                  data-testid="copy-link"
+                  onClick={async () => {
+                    if (await copyText(link)) flash("Link copied");
+                    else setManual(true);
+                  }}
+                >
+                  copy link
+                </button>
                 <a className="ml-2 underline" href={`https://wa.me/?text=${encodeURIComponent(`Your family invitation: ${link}`)}`} target="_blank" rel="noopener noreferrer">WhatsApp</a>
                 <button
                   className="ml-2 text-red-700 underline"
@@ -115,6 +126,18 @@ function FamilyRowView({ f, events, can, editing, onEdit }: { f: FamilyRow; even
               </>
             )}
             {note && <span className="ml-2 text-green-700" role="status">{note}</span>}
+            {manual && link && (
+              <input
+                readOnly
+                autoFocus
+                value={link}
+                onFocus={(e) => e.currentTarget.select()}
+                onBlur={() => setManual(false)}
+                className="ml-2 w-64 rounded border px-1 font-mono text-xs"
+                aria-label="Family link — press Cmd+C or Ctrl+C to copy"
+                data-testid="manual-link"
+              />
+            )}
           </td>
         )}
       </tr>
