@@ -1,0 +1,10 @@
+replicaCount: 1
+appEnv: staging
+appUrl: https://staging.pehleaap.example
+ingress:
+  host: staging.pehleaap.example
+  staticIpName: pehle-aap-staging-ip
+serviceAccount:
+  gcpServiceAccount: pehle-aap-staging@PROJECT.iam.gserviceaccount.com
+externalSecrets:
+  projectId: PROJECT

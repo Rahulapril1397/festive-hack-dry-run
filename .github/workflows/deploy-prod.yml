@@ -1,0 +1,45 @@
+name: deploy-prod
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: "Commit SHA already deployed to staging (the image tag to promote)"
+        required: true
+
+concurrency: { group: deploy-prod, cancel-in-progress: false }
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  IMAGE: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT }}/${{ vars.AR_REPO }}/pehle-aap
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production   # protect with required reviewers in repo settings
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ inputs.sha }}" }
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SA }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - name: Image must already exist (built and tested on staging)
+        run: gcloud artifacts docker images describe "${IMAGE}:${{ inputs.sha }}"
+      - uses: google-github-actions/get-gke-credentials@v2
+        with:
+          cluster_name: ${{ vars.GKE_CLUSTER }}
+          location: ${{ vars.GCP_REGION }}
+      - uses: azure/setup-helm@v4
+      - name: helm upgrade (prod)
+        run: |
+          helm upgrade --install pehle-aap deploy/helm/pehle-aap \
+            --namespace prod \
+            -f deploy/helm/pehle-aap/values-prod.yaml \
+            --set image.repository="${IMAGE}" --set image.tag="${{ inputs.sha }}" \
+            --wait --timeout 5m --atomic
+      - name: Health check
+        run: curl -fsS "${{ vars.PROD_URL }}/api/health" | tee /dev/stderr | grep -q "\"sha\":\"${{ inputs.sha }}\""

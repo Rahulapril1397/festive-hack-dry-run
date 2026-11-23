@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "pehle.name" . }}
+  labels: {{- include "pehle.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  revisionHistoryLimit: 10
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxUnavailable: 0, maxSurge: 1 }
+  selector:
+    matchLabels: {{- include "pehle.selector" . | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "pehle.selector" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      securityContext: { runAsNonRoot: true, seccompProfile: { type: RuntimeDefault } }
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: web
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports: [{ name: http, containerPort: {{ .Values.service.targetPort }} }]
+          env:
+            - { name: APP_ENV, value: {{ .Values.appEnv | quote }} }
+            - { name: APP_URL, value: {{ .Values.appUrl | quote }} }
+            - { name: GIT_SHA, value: {{ .Values.image.tag | quote }} }
+            {{- range $k, $v := .Values.env }}
+            - { name: {{ $k }}, value: {{ $v | quote }} }
+            {{- end }}
+          {{- if .Values.externalSecrets.enabled }}
+          envFrom:
+            - secretRef: { name: pehle-aap-secrets }
+          {{- end }}
+          readinessProbe:
+            httpGet: { path: /api/health, port: http }
+            periodSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet: { path: /api/health, port: http }
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            failureThreshold: 4
+          startupProbe:
+            httpGet: { path: /api/health, port: http }
+            periodSeconds: 2
+            failureThreshold: 30
+          resources: {{- toYaml .Values.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: [ALL] }

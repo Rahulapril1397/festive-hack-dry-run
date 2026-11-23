@@ -1,0 +1,13 @@
+replicaCount: 2
+appEnv: production
+appUrl: https://pehleaap.example
+ingress:
+  host: pehleaap.example
+  staticIpName: pehle-aap-prod-ip
+serviceAccount:
+  gcpServiceAccount: pehle-aap-prod@PROJECT.iam.gserviceaccount.com
+externalSecrets:
+  projectId: PROJECT
+resources:
+  requests: { cpu: 500m, memory: 1Gi }
+  limits: { cpu: "1", memory: 1Gi }

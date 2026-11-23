@@ -1,0 +1,62 @@
+replicaCount: 1
+
+image:
+  repository: REGION-docker.pkg.dev/PROJECT/REPO/pehle-aap
+  tag: dev
+  pullPolicy: IfNotPresent
+
+appEnv: staging
+appUrl: https://staging.example.com
+
+# Non-secret config. Secrets come from Secret Manager (externalSecrets below).
+env:
+  SARVAM_API_URL: https://api.sarvam.ai
+  SARVAM_TTS_MODEL: bulbul:v3
+  SARVAM_SPEAKER: shubh
+  SARVAM_FORCE_FAIL: "0"
+  FLAGSMITH_API_URL: https://edge.api.flagsmith.com/api/v1
+  FLAGSMITH_ADMIN_API_URL: https://api.flagsmith.com/api/v1
+  FLAG_OVERRIDE_ROLES: stage
+  PHOTO_MATCH_WINDOW_MS: "3000"
+
+serviceAccount:
+  # Kubernetes SA bound to a Google SA via Workload Identity (roles/secretmanager.secretAccessor).
+  name: pehle-aap
+  gcpServiceAccount: ""   # e.g. pehle-aap-staging@PROJECT.iam.gserviceaccount.com
+
+externalSecrets:
+  enabled: true
+  refreshInterval: 1h
+  projectId: ""
+  # k8s env name -> Secret Manager secret name
+  keys:
+    SUPABASE_URL: pehle-supabase-url
+    SUPABASE_ANON_KEY: pehle-supabase-anon-key
+    SUPABASE_SERVICE_ROLE_KEY: pehle-supabase-service-role-key
+    CLOCK_HMAC_SECRET: pehle-clock-hmac-secret
+    GUEST_COOKIE_SECRET: pehle-guest-cookie-secret
+    SEED_USER_PASSWORD: pehle-seed-user-password
+    SARVAM_API_KEY: pehle-sarvam-api-key
+    FLAGSMITH_SERVER_KEY: pehle-flagsmith-server-key
+    FLAGSMITH_ADMIN_KEY: pehle-flagsmith-admin-key
+    FLAGSMITH_ENVIRONMENT_KEY: pehle-flagsmith-environment-key
+    METRICS_TOKEN: pehle-metrics-token
+    NUDGEBEE_WEBHOOK_SECRET: pehle-nudgebee-webhook-secret
+
+service:
+  port: 80
+  targetPort: 8080
+
+ingress:
+  enabled: true
+  host: staging.example.com
+  staticIpName: ""        # global static IP reserved with gcloud
+  managedCertificate: true
+
+resources:
+  requests: { cpu: 250m, memory: 512Mi }
+  limits: { cpu: 500m, memory: 512Mi }
+
+# SSE streams (TV) are long-lived: give the GCLB backend a long timeout.
+backendConfig:
+  timeoutSec: 3600
