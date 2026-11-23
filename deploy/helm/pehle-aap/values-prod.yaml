@@ -8,6 +8,7 @@ serviceAccount:
   gcpServiceAccount: pehle-aap-prod@PROJECT.iam.gserviceaccount.com
 externalSecrets:
   projectId: PROJECT
+  prefix: prod-
 resources:
   requests: { cpu: 500m, memory: 1Gi }
   limits: { cpu: "1", memory: 1Gi }

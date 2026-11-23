@@ -42,8 +42,8 @@ for ns in staging prod; do
 done
 ```
 
-Create one secret per entry in `externalSecrets.keys` (values.yaml). Use separate projects or
-name prefixes if staging and prod must not share values. Point DNS for each host at its static IP;
+Create one secret per entry in `externalSecrets.keys` (values.yaml), prefixed `staging-` / `prod-`
+(e.g. `staging-pehle-supabase-url`). Point DNS for each host at its static IP;
 the ManagedCertificate turns Active within ~15–60 minutes.
 
 **Database.** Migrations are applied by hand before a deploy that needs them:

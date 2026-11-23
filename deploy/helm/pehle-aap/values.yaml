@@ -28,6 +28,7 @@ externalSecrets:
   enabled: true
   refreshInterval: 1h
   projectId: ""
+  prefix: ""              # "staging-" / "prod-": separate Secret Manager secrets per environment
   # k8s env name -> Secret Manager secret name
   keys:
     SUPABASE_URL: pehle-supabase-url
@@ -42,6 +43,10 @@ externalSecrets:
     FLAGSMITH_ENVIRONMENT_KEY: pehle-flagsmith-environment-key
     METRICS_TOKEN: pehle-metrics-token
     NUDGEBEE_WEBHOOK_SECRET: pehle-nudgebee-webhook-secret
+
+gke:
+  clusterName: pehle-aap
+  location: asia-south1
 
 service:
   port: 80

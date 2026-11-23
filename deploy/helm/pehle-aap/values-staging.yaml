@@ -8,3 +8,4 @@ serviceAccount:
   gcpServiceAccount: pehle-aap-staging@PROJECT.iam.gserviceaccount.com
 externalSecrets:
   projectId: PROJECT
+  prefix: staging-
