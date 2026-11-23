@@ -1,6 +1,7 @@
 /**
  * PinkyBua model adapter: chat({ system, turns, tools }) → { text, toolCalls, raw, stopReason }.
- * Implementations: mock (scripted, for tests) and Anthropic (Messages API, official SDK).
+ * Implementations: mock (scripted, for tests), Sarvam (default: sarvam-105b chat completions,
+ * OpenAI-style tool calling) and Anthropic (optional, ASSISTANT_PROVIDER=anthropic).
  * The model never receives secrets or database access — only tool results the service chose.
  */
 import Anthropic from "@anthropic-ai/sdk";
@@ -94,10 +95,89 @@ export function anthropicProvider(opts: { apiKey?: string; model?: string; clien
   };
 }
 
-/** The configured provider, or null when the assistant is not set up (the widget says so). */
+// ─── Sarvam (default) ───────────────────────────────────────────────────────────────────────
+/**
+ * POST {SARVAM_API_URL}/v1/chat/completions, header api-subscription-key (docs.sarvam.ai,
+ * "Chat Completion V1"). Models: sarvam-105b (128K, agentic) | sarvam-105b-conversations.
+ * Tools: [{ type: "function", function: { name, description, parameters } }];
+ * replies: choices[0].message.{content, tool_calls[{ id, function: { name, arguments(JSON string) } }]};
+ * tool results: { role: "tool", tool_call_id, content }.
+ */
+type SarvamMsg =
+  | { role: "system" | "user"; content: string }
+  | { role: "assistant"; content: string | null; tool_calls?: { id: string; type: "function"; function: { name: string; arguments: string } }[] }
+  | { role: "tool"; tool_call_id: string; content: string };
+
+export function sarvamChatProvider(opts: { apiKey?: string; apiUrl?: string; model?: string; fetchImpl?: typeof fetch } = {}): ChatProvider {
+  const apiKey = opts.apiKey ?? process.env.SARVAM_API_KEY ?? "";
+  if (!apiKey) throw new ProviderUnavailable("SARVAM_API_KEY is not set");
+  const base = (opts.apiUrl ?? process.env.SARVAM_API_URL ?? "https://api.sarvam.ai").replace(/\/$/, "");
+  const model = opts.model ?? process.env.SARVAM_CHAT_MODEL ?? "sarvam-105b";
+  const fetchImpl = opts.fetchImpl ?? fetch;
+
+  const toMessages = (system: string, turns: Turn[]): SarvamMsg[] => [
+    { role: "system", content: system },
+    ...turns.flatMap((t): SarvamMsg[] => {
+      if (t.role === "user") return [{ role: "user", content: t.text }];
+      if (t.role === "assistant")
+        return [{
+          role: "assistant",
+          content: t.text || null,
+          ...(t.toolCalls.length ? { tool_calls: t.toolCalls.map((c) => ({ id: c.id, type: "function" as const, function: { name: c.name, arguments: JSON.stringify(c.input ?? {}) } })) } : {}),
+        }];
+      return t.results.map((r) => ({ role: "tool" as const, tool_call_id: r.id, content: r.isError ? `ERROR: ${r.content}` : r.content }));
+    }),
+  ];
+
+  return {
+    name: `sarvam:${model}`,
+    async chat({ system, turns, tools, signal }) {
+      const res = await fetchImpl(`${base}/v1/chat/completions`, {
+        method: "POST",
+        signal,
+        headers: { "content-type": "application/json", "api-subscription-key": apiKey },
+        body: JSON.stringify({
+          model,
+          messages: toMessages(system, turns),
+          ...(tools.length ? { tools: tools.map((t) => ({ type: "function", function: { name: t.name, description: t.description, parameters: t.inputSchema } })), tool_choice: "auto" } : {}),
+          reasoning_effort: "low", // chat: fast answers
+          max_tokens: 2048,
+        }),
+      });
+      if (!res.ok) throw new Error(`sarvam chat HTTP ${res.status}`);
+      const body = (await res.json()) as {
+        choices?: { finish_reason?: string; message?: { content?: string | null; refusal?: string | null; tool_calls?: { id: string; function: { name: string; arguments: string } }[] } }[];
+      };
+      const choice = body.choices?.[0];
+      if (!choice?.message) throw new Error("sarvam chat: empty response");
+      const toolCalls = (choice.message.tool_calls ?? []).map((c) => {
+        let input: unknown = {};
+        try {
+          input = c.function.arguments ? JSON.parse(c.function.arguments) : {};
+        } catch {
+          input = { __invalid_json__: c.function.arguments }; // the tool's strict schema rejects it
+        }
+        return { id: c.id, name: c.function.name, input };
+      });
+      const f = choice.finish_reason;
+      const stopReason =
+        f === "content_filter" || choice.message.refusal ? "refusal"
+        : toolCalls.length || f === "tool_calls" ? "tool_use"
+        : f === "length" ? "max_tokens"
+        : f === "stop" ? "end"
+        : "other";
+      return { text: (choice.message.content ?? "").trim(), toolCalls, stopReason };
+    },
+  };
+}
+
+/**
+ * The configured provider (ASSISTANT_PROVIDER: "sarvam" default, or "anthropic"), or null when
+ * its key is missing — the widget then says the assistant is unavailable; the app keeps working.
+ */
 export function defaultProvider(): ChatProvider | null {
   try {
-    return anthropicProvider();
+    return (process.env.ASSISTANT_PROVIDER ?? "sarvam") === "anthropic" ? anthropicProvider() : sarvamChatProvider();
   } catch (e) {
     if (e instanceof ProviderUnavailable) return null;
     throw e;

@@ -18,7 +18,8 @@ env:
   FLAGSMITH_ADMIN_API_URL: https://api.flagsmith.com/api/v1
   FLAG_OVERRIDE_ROLES: stage
   PHOTO_MATCH_WINDOW_MS: "3000"
-  ASSISTANT_MODEL: claude-opus-5-5
+  ASSISTANT_PROVIDER: sarvam
+  SARVAM_CHAT_MODEL: sarvam-105b
 
 serviceAccount:
   # Kubernetes SA bound to a Google SA via Workload Identity (roles/secretmanager.secretAccessor).

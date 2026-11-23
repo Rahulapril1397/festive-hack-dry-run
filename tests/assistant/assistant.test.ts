@@ -131,3 +131,44 @@ describe("system prompt", () => {
     expect(p).toContain("Never reveal data about any other family");
   });
 });
+
+describe("Sarvam chat provider (request/response mapping)", () => {
+  it("sends OpenAI-style tools and replays tool calls/results; parses tool_calls", async () => {
+    const { sarvamChatProvider } = await import("@/lib/assistant/provider");
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ choices: [{ finish_reason: "tool_calls", message: { content: "\n", tool_calls: [{ id: "call-1", type: "function", function: { name: "queue_status", arguments: "{}" } }] } }] }))) as unknown as typeof fetch;
+    const p = sarvamChatProvider({ apiKey: "sk_test", fetchImpl });
+    const res = await p.chat({
+      system: "sys",
+      turns: [
+        { role: "user", text: "q" },
+        { role: "assistant", text: "", toolCalls: [{ id: "call-0", name: "explain_screen", input: { topic: "x" } }] },
+        { role: "tool_results", results: [{ id: "call-0", content: "kb", isError: false }] },
+      ],
+      tools: [{ name: "queue_status", description: "d", inputSchema: { type: "object", properties: {} } }],
+    });
+    expect(res).toMatchObject({ stopReason: "tool_use", toolCalls: [{ id: "call-1", name: "queue_status", input: {} }], text: "" });
+    const [url, init] = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls[0]!;
+    expect(url).toBe("https://api.sarvam.ai/v1/chat/completions");
+    expect((init as RequestInit).headers).toMatchObject({ "api-subscription-key": "sk_test" });
+    const body = JSON.parse((init as RequestInit).body as string);
+    expect(body.model).toBe("sarvam-105b");
+    expect(body.tools[0]).toEqual({ type: "function", function: { name: "queue_status", description: "d", parameters: { type: "object", properties: {} } } });
+    expect(body.messages.map((m: { role: string }) => m.role)).toEqual(["system", "user", "assistant", "tool"]);
+    expect(body.messages[2].tool_calls[0].function).toEqual({ name: "explain_screen", arguments: '{"topic":"x"}' });
+    expect(body.messages[3]).toEqual({ role: "tool", tool_call_id: "call-0", content: "kb" });
+  });
+
+  it("content_filter → refusal; bad argument JSON is passed on so the strict schema rejects it", async () => {
+    const { sarvamChatProvider } = await import("@/lib/assistant/provider");
+    const mk = (b: unknown) => vi.fn(async () => new Response(JSON.stringify(b))) as unknown as typeof fetch;
+    const refused = await sarvamChatProvider({ apiKey: "k", fetchImpl: mk({ choices: [{ finish_reason: "content_filter", message: { content: null } }] }) }).chat({ system: "", turns: [], tools: [] });
+    expect(refused.stopReason).toBe("refusal");
+    const bad = await sarvamChatProvider({ apiKey: "k", fetchImpl: mk({ choices: [{ finish_reason: "tool_calls", message: { tool_calls: [{ id: "c", function: { name: "my_rsvp", arguments: "{oops" } }] } }] }) }).chat({ system: "", turns: [], tools: [] });
+    expect(bad.toolCalls[0]!.input).toEqual({ __invalid_json__: "{oops" });
+  });
+
+  it("no SARVAM_API_KEY → provider unavailable (widget says so, app keeps working)", async () => {
+    const { sarvamChatProvider, ProviderUnavailable } = await import("@/lib/assistant/provider");
+    expect(() => sarvamChatProvider({ apiKey: "" })).toThrow(ProviderUnavailable);
+  });
+});

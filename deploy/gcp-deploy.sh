@@ -12,6 +12,9 @@
 #   --domain=HOST    DOMAIN        HTTPS on this host (A record → the static IP). Empty = http://<IP>
 #   --secrets=MODE   SECRETS_MODE  secretmanager (default: Secret Manager + External Secrets) | k8s
 #   --skip-build                   redeploy the last built image
+#   --super-admin=EMAIL            make this existing staff user a super admin after deploying
+#   --skip-backup                  do not pg_dump the database first (not recommended)
+#   BACKUP_DIR=…                   where backups go (default ~/pehle-backups, outside the repo)
 #   --tools-only                   only download helm/kubectl into .deploy/bin
 #   --yes            YES=1
 #
@@ -42,6 +45,7 @@ export KUBECONFIG="$WORK/kubeconfig"
 
 GCP_PROJECT="${GCP_PROJECT:-}"; GCP_REGION="${GCP_REGION:-}"; DOMAIN="${DOMAIN-__unset__}"
 SECRETS_MODE="${SECRETS_MODE:-secretmanager}"; YES="${YES:-0}"; SKIP_BUILD=0; TOOLS_ONLY=0
+SUPER_ADMIN_EMAIL="${SUPER_ADMIN_EMAIL:-}"; SKIP_BACKUP=0; BACKUP_DIR="${BACKUP_DIR:-$HOME/pehle-backups}"
 for a in "$@"; do
   case "$a" in
     --project=*) GCP_PROJECT="${a#*=}" ;;
@@ -50,6 +54,8 @@ for a in "$@"; do
     --secrets=*) SECRETS_MODE="${a#*=}" ;;
     --skip-build) SKIP_BUILD=1 ;;
     --tools-only) TOOLS_ONLY=1 ;;
+    --super-admin=*) SUPER_ADMIN_EMAIL="${a#*=}" ;;
+    --skip-backup) SKIP_BACKUP=1 ;;
     -y|--yes) YES=1 ;;
     -h|--help) sed -n '2,22p' "$0"; exit 0 ;;
     *) echo "Unknown option: $a (try --help)"; exit 2 ;;
@@ -345,16 +351,37 @@ rm -f "$K8S_ENV_FILE"
 
 # ── database ──────────────────────────────────────────────────────────────────────────────────
 step "Database (Supabase)"
-npm run -s migrate
-WEDDINGS="$(node --input-type=module -e '
+pg_count() { # pg_count "<sql returning one int column n>"
+  Q="$1" node --input-type=module -e '
 import postgres from "postgres";
 const s = postgres(process.env.DATABASE_URL, { max: 1, prepare: false, onnotice: () => {} });
-const [r] = await s`select count(*)::int n from wedding`; console.log(r.n); await s.end();')"
-SUPERS="$(node --input-type=module -e '
-import postgres from "postgres";
-const s = postgres(process.env.DATABASE_URL, { max: 1, prepare: false, onnotice: () => {} });
-const [r] = await s`select authz.active_super_admins() n`; console.log(r.n); await s.end();' 2>/dev/null || echo "?")"
-[ "$SUPERS" = "0" ] && warn "no super admin yet — nobody can create weddings or edit roles. Run: DATABASE_URL=… npm run grant:super-admin -- you@example.com"
+try { const [r] = await s.unsafe(process.env.Q); console.log(r.n); } catch { console.log("?"); } finally { await s.end(); }'
+}
+
+# 1. Backup first (custom format; restore with pg_restore). Kept outside the repo: it holds phones and ledger data.
+if [ "$SKIP_BACKUP" = "1" ]; then
+  warn "backup skipped (--skip-backup)"
+else
+  PG_DUMP="$(command -v pg_dump || true)"
+  [ -n "$PG_DUMP" ] || PG_DUMP="$(ls -d /Applications/Postgres.app/Contents/Versions/latest/bin/pg_dump 2>/dev/null || true)"
+  [ -n "$PG_DUMP" ] || die "pg_dump not found. Install the PostgreSQL client tools (or Postgres.app), or re-run with --skip-backup."
+  mkdir -p "$BACKUP_DIR" && chmod 700 "$BACKUP_DIR"
+  BACKUP_FILE="$BACKUP_DIR/pehle-$GCP_PROJECT-$(date +%Y%m%d-%H%M%S).dump"
+  info "backing up the database with $($PG_DUMP --version | awk '{print $NF}')"
+  "$PG_DUMP" "$DATABASE_URL" --format=custom --no-owner --no-privileges --file="$BACKUP_FILE" || die "Backup failed — nothing was changed. Fix the error above, or re-run with --skip-backup."
+  chmod 600 "$BACKUP_FILE"
+  ok "backup: $BACKUP_FILE ($(du -h "$BACKUP_FILE" | cut -f1))  — restore: pg_restore --clean --no-owner -d \"\$DATABASE_URL\" \"$BACKUP_FILE\""
+fi
+
+# 2. Migrations. First install: here. Upgrades: the Helm pre-upgrade hook Job, right before new pods
+#    start, so the running version is not left on a newer schema longer than necessary.
+if helm status "$RELEASE" -n "$NAMESPACE" >/dev/null 2>&1; then
+  ok "migrations will run in the pre-upgrade hook Job just before the new pods start"
+else
+  npm run -s migrate
+fi
+
+WEDDINGS="$(pg_count "select count(*)::int n from wedding")"
 if [ "$WEDDINGS" = "0" ]; then
   if [ -z "${SEED_USER_PASSWORD:-}" ]; then
     warn "no wedding yet and SEED_USER_PASSWORD is empty — skipping demo seed"
@@ -455,6 +482,18 @@ case "$HEALTH" in
   *"\"sha\":\"$TAG\""*) ok "http://$IP/api/health → $HEALTH" ;;
   *) warn "health check not passing yet (load balancer may still be provisioning). Check later: curl http://$IP/api/health" ;;
 esac
+step "Super admin"
+if [ -n "$SUPER_ADMIN_EMAIL" ]; then
+  node scripts/grant-super-admin.mjs "$SUPER_ADMIN_EMAIL" || die "Could not make $SUPER_ADMIN_EMAIL a super admin (see above)."
+  ok "$SUPER_ADMIN_EMAIL is a super admin"
+fi
+SUPERS="$(pg_count "select authz.active_super_admins() n")"
+case "$SUPERS" in
+  0) warn "no super admin yet — nobody can create weddings or edit roles. Re-run with --super-admin=you@example.com --skip-build" ;;
+  "?") warn "could not check super admins" ;;
+  *) ok "$SUPERS active super admin(s)" ;;
+esac
+
 UPTIME_HOST="${DOMAIN:-$IP}"; UPTIME_PROTO="$([ -n "$DOMAIN" ] && [ "${CERT_READY:-}" = 1 ] && echo https || echo http)"
 if gcloud monitoring uptime list-configs --project "$GCP_PROJECT" --filter='displayName="pehle-aap-health"' --format='value(name)' 2>/dev/null </dev/null | grep -q .; then
   ok "Cloud Monitoring uptime check exists (pehle-aap-health)"

@@ -6,7 +6,7 @@ import { applyOverrides } from "@/lib/flags/overrides";
 
 afterEach(() => vi.unstubAllEnvs());
 
-describe("no mock integrations in staging/production (E2 T7)", () => {
+describe("no mock integrations outside the test suite (E2 T7)", () => {
   it("Sarvam without a key in production: translate stays English, tts throws (TV chimes)", async () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("APP_ENV", "production");
@@ -26,10 +26,16 @@ describe("no mock integrations in staging/production (E2 T7)", () => {
     expect(await applyOverrides({ userId: "u", role: "stage_manager", weddingId: "w" }, "queue.skip", false, { client: c, roles: ["stage_manager"] })).toBe(false);
   });
 
-  it("local development keeps the mocks", () => {
+  it("local development has no mocks either: missing keys mean off", () => {
     vi.stubEnv("NODE_ENV", "development");
     vi.stubEnv("APP_ENV", "local");
+    expect(createSarvamClient({ apiKey: "" }).mock).toBe(false);
+    expect(createSarvamClient({ apiKey: "" }).off).toBe(true);
+    expect(createFlagClient({ serverKey: "" }).mock).toBe(false);
+  });
+
+  it("only the test suite gets mocks", () => {
+    vi.stubEnv("NODE_ENV", "test");
     expect(createSarvamClient({ apiKey: "" }).mock).toBe(true);
-    expect(createFlagClient({ serverKey: "" }).mock).toBe(true);
   });
 });

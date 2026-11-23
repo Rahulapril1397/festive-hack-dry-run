@@ -26,12 +26,12 @@ Next.js 15 (App Router) · TypeScript strict · Tailwind v4 · Zod · Supabase P
 - **Every API route checks permission server-side** with `requirePermission` (or a guard that calls it: `authorizeEvent`, `requireAdmin`, `ledgerAccess`, `resolveCaller`) before calling the service client, or is marked `publicRoute("reason")`. `npm run audit:routes` enforces this in CI. The service client bypasses RLS.
 - **Permissions live in Postgres** (Stage 2): `authz.effective_permissions(user, wedding)` — active user, assignment window, role permission, wedding match, wedding-less `super_admin`. `requirePermission` (frozen signature) resolves them once per request, then applies E2's grant-only Flagsmith overrides. `src/lib/authz/staticMap.ts` is a **test fixture** that must equal the defaults in `0010_rbac.sql`. Suspended users get 403 everywhere; the last active super admin cannot be removed (DB trigger).
 - **PinkyBua** (`src/lib/assistant`): tools call domain services with the caller's scope; the list is filtered by permission before the model sees it and re-checked at execution; write tools only propose (single-use token, 5 min, args hash, permission re-check, audited on confirm). The model never gets secrets or DB access. Add tools in `src/lib/assistant/tools/index.ts`.
-- **No mock integrations outside tests/local** (`src/lib/mockPolicy.ts`): in staging/prod a missing Sarvam/Flagsmith key means "off" with safe fallbacks.
+- **No mock integrations outside the test suite** (`src/lib/mockPolicy.ts`, NODE_ENV=test): anywhere else a missing Sarvam/Flagsmith key means "off" with safe fallbacks.
 - **RLS is on with no policies**: the browser's anon key can read nothing. Do not add policies in Stage 1.
 - **stage_log, ledger_entry, ledger_reconciliation are append-only** (triggers). Never UPDATE/DELETE; write a new row (ledger corrections = reversing entry + new entry). `photo.captured_at` is immutable.
 - **Every migration ends with `select lock_down_public();`** (0003) — new functions are otherwise EXECUTE-able by PUBLIC, i.e. the anon key via `/rpc`. An integration test enforces this.
 - **Ledger amounts need `ledger.read`**, enforced in `src/domain/ledger` (`toApiRow` removes the `amount` key); export needs `ledger.read` + `ledger.export`. Add, reverse, reconcile and export write `audit_log` (no amounts in audit data).
-- **Nothing private goes to Sarvam or Flagsmith**: only static UI copy, approved invitation text and token announcements; Flagsmith identities are `wedding:<id>:role:<role>`. Metric labels are fixed enums.
+- **What goes to Sarvam / Flagsmith**: translation and TTS get only static UI copy, approved invitation text and token announcements. PinkyBua (Sarvam chat, `sarvam-105b`) receives the caller's question and the results of tools that caller is allowed to use (role-scoped; never phone numbers, never other families for guests). Flagsmith identities are `wedding:<id>:role:<role>`. Metric labels are fixed enums.
 - **Every external call** (Sarvam, Flagsmith, NudgeBee) has a timeout, a mock mode (empty key) and a safe fallback.
 - **Photos are matched by time only** — no face recognition, never auto-confirmed.
 - **The TV never sees PII.** It reads `tv_feed` only (token, next_token, instruction, language, announcement_id). Do not add columns to `tv_feed` or join anything into TV routes.
@@ -128,6 +128,5 @@ If you need a change in another lane, stop and ask its owner.
 - `queue.skip` for stage depends on the Flagsmith flag (doc_e2 T7). With Flagsmith configured but down, stage cannot SKIP (baseline). Confirm this is wanted for the wedding day, or add `queue.skip` to the stage baseline.
 - doc_e2 says the guest cookie is "signed with APP_BASE_URL secret"; implemented as `GUEST_COOKIE_SECRET`.
 - Stage 2 default role permission sets (spec §3.2) are interpreted in `0010_rbac.sql`; confirm with the spec owner. Notably stage managers no longer see Families (phones), coordinators have no ledger access.
-- Mock integrations: doc_e2_s2 says "mock only when NODE_ENV is test"; local development (`APP_ENV=local`) also keeps mocks so the app runs without keys.
-- PinkyBua real-model eval (`tests/assistant/RESULTS.md`) not yet run.
+- PinkyBua runs on Sarvam chat (owner's decision) instead of doc_e2_s2's default Anthropic provider; Anthropic remains selectable with ASSISTANT_PROVIDER=anthropic. Real-model eval (`tests/assistant/RESULTS.md`) not yet run.
 - Supabase Auth → URL Configuration must allow `<APP_URL>/login/accept` for invite links.
