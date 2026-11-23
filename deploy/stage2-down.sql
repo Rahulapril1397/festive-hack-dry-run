@@ -5,6 +5,14 @@
 -- Run by deploy/rollback-stage2.sh in one transaction; tested against a Stage 1 schema snapshot.
 begin;
 
+-- Refuse on a database that is not on Stage 2 (nothing to undo).
+do $$
+begin
+  if to_regnamespace('authz') is null and not exists (select 1 from role where key = 'stage_manager') then
+    raise exception 'NOT_STAGE2: this database is on Stage 1 already; nothing to roll back';
+  end if;
+end $$;
+
 -- 0204_live
 drop index if exists photo_batch_hash_uidx;
 drop index if exists photo_review_idx;

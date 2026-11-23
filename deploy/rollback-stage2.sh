@@ -10,6 +10,7 @@
 #    Tested: the resulting schema is identical to Stage 1.
 # 3. Verify the old version answers and Stage 1 sign-in works.
 # The pg_dump taken by deploy-stage2.sh (~/pehle-backups) is the last resort if this fails.
+# If the database is not on Stage 2, it stops before changing anything.
 # ──────────────────────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -33,6 +34,18 @@ command -v helm >/dev/null && command -v kubectl >/dev/null || die "helm/kubectl
 [ -f .env.local ] || die ".env.local not found"
 set -a; . ./.env.local; set +a
 [ -n "${DATABASE_URL:-}" ] || die "DATABASE_URL missing in .env.local"
+# Is production actually on Stage 2? Checked before anything is changed.
+STATE="$(Q="select (to_regnamespace('authz') is not null or exists (select 1 from role where key = 'stage_manager')) as stage2" node --input-type=module -e '
+import postgres from "postgres";
+const s = postgres(process.env.DATABASE_URL, { max: 1, prepare: false, onnotice: () => {} });
+try { const [r] = await s.unsafe(process.env.Q); console.log(r.stage2 ? "stage2" : "stage1"); }
+catch { console.log("unknown"); } finally { await s.end(); }')"
+case "$STATE" in
+  stage1) echo "Production is on Stage 1 (no Stage 2 migrations applied). Nothing to roll back — nothing was changed."; exit 0 ;;
+  stage2) ok "database is on Stage 2" ;;
+  *) die "Could not read the database state; not changing anything." ;;
+esac
+
 [ -n "$PROJECT" ] || PROJECT="$(gcloud config get-value project 2>/dev/null || true)"
 REGION="$(gcloud container clusters list --project "$PROJECT" --filter=name=pehle-aap --format='value(location)' | head -1)"
 [ -n "$REGION" ] || die "cluster pehle-aap not found in $PROJECT"
@@ -43,13 +56,17 @@ ca="$(gcloud container clusters describe pehle-aap --region "$REGION" --project 
 tok="$(gcloud auth print-access-token)"
 ( umask 077; printf 'apiVersion: v1\nkind: Config\nclusters: [{ name: gke, cluster: { server: "https://%s", certificate-authority-data: "%s" } }]\nusers: [{ name: gcloud, user: { token: "%s" } }]\ncontexts: [{ name: gke, context: { cluster: gke, user: gcloud, namespace: prod } }]\ncurrent-context: gke\n' "$ep" "$ca" "$tok" > "$KUBECONFIG" )
 
-echo "Helm history (prod):"
+echo "Helm history (prod), with the image each revision ran:"
 helm history pehle-aap -n prod --max 6
+for r in $(helm history pehle-aap -n prod --max 6 -o json | grep -oE '"revision":[0-9]+' | cut -d: -f2); do
+  printf "  revision %s: image %s\n" "$r" "$(helm get values pehle-aap -n prod --revision "$r" -a -o json 2>/dev/null | grep -oE '"tag":"[^"]+"' | head -1 | cut -d'"' -f4)"
+done
+echo "  (pick the last revision from before the Stage 2 deploy)"
 CURRENT="$(helm history pehle-aap -n prod --max 1 -o json | sed -nE 's/.*"revision":([0-9]+).*/\1/p')"
 [ -n "$REVISION" ] || REVISION=$((CURRENT - 1))
 echo
 echo "Roll back: Helm revision $CURRENT → $REVISION, then reverse the Stage 2 database migrations."
-read -r -p "Type ROLLBACK to continue: " A </dev/tty
+A=""; if { exec 3</dev/tty; } 2>/dev/null; then read -r -p "Type ROLLBACK to continue: " A <&3 || true; exec 3<&-; fi
 [ "$A" = "ROLLBACK" ] || { echo "Cancelled. Nothing changed."; exit 0; }
 
 helm rollback pehle-aap "$REVISION" -n prod --wait --timeout 10m
