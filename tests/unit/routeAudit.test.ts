@@ -13,9 +13,9 @@ describe("route audit (E1 T2)", () => {
   it("public routes are exactly the ones with a non-permission safeguard", () => {
     const pub = rows.filter((r) => r.guards.length === 1 && r.guards[0] === "publicRoute").map((r) => `${r.method} ${r.route}`).sort();
     expect(pub).toEqual([
-      "GET /api/guest/status", "GET /api/health", "GET /api/metrics", "GET /api/tv/announcement/[id]/audio", "GET /api/tv/feed", "GET /api/tv/stream",
+      "GET /api/guest/status", "GET /api/health", "GET /api/metrics", "GET /api/notifications", "GET /api/tv/announcement/[id]/audio", "GET /api/tv/feed", "GET /api/tv/stream",
       "POST /api/auth/logout", "POST /api/checkin/verify", "POST /api/guest/language", "POST /api/integrations/nudgebee/recommendation",
-      "POST /api/session/wedding", "POST /api/tv/telemetry", "PUT /api/guest/rsvp",
+      "POST /api/jobs/tick", "POST /api/notifications/read", "POST /api/session/wedding", "POST /api/tv/telemetry", "PUT /api/guest/rsvp",
     ]);
   });
 

@@ -1,0 +1,43 @@
+{{- if .Values.jobsCron.enabled }}
+# Stage 3 (E1 T1): every minute, ask the app to run due jobs (reminders, escalations, nightly expiry).
+# The token comes from the app secret; the response carries counts only.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "pehle.name" . }}-jobs-tick
+  labels: {{- include "pehle.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.jobsCron.schedule | quote }}
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 50
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      activeDeadlineSeconds: 55
+      ttlSecondsAfterFinished: 300
+      template:
+        metadata:
+          labels: { app.kubernetes.io/name: {{ include "pehle.name" . }}-jobs }
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          securityContext: { runAsNonRoot: true, runAsUser: 100, runAsGroup: 101, seccompProfile: { type: RuntimeDefault } }
+          containers:
+            - name: tick
+              image: {{ .Values.jobsCron.image }}
+              command: ["sh", "-c"]
+              args:
+                - >-
+                  curl -fsS --max-time 50 -X POST
+                  -H "X-Jobs-Token: $JOBS_TOKEN"
+                  http://{{ include "pehle.name" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.service.port }}/api/jobs/tick
+              env:
+                - name: JOBS_TOKEN
+                  valueFrom: { secretKeyRef: { name: pehle-aap-secrets, key: JOBS_TOKEN } }
+              resources:
+                requests: { cpu: 10m, memory: 16Mi }
+                limits: { cpu: 100m, memory: 32Mi }
+              securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: [ALL] } }
+{{- end }}

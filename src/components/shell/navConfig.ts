@@ -13,10 +13,13 @@ export const NAV: readonly NavItem[] = [
   { key: "review", label: "Photo review", href: "/photographer/review", permission: "photos.review" },
   { key: "album", label: "Album", href: "/host/album", permission: "photos.review" },
   { key: "ledger", label: "Shagun Ledger", href: "/ledger", permission: "ledger.write", also: ["ledger.read"] },
-  { key: "thank-yous", label: "Thank-yous", href: "/soon/thank-yous", permission: "host.read", soon: true },
-  { key: "vendors", label: "Vendors", href: "/soon/vendors", permission: "host.read", soon: true },
-  { key: "tasks", label: "Tasks", href: "/soon/tasks", permission: "host.read", soon: true },
+  { key: "tasks", label: "Tasks", href: "/tasks", permission: "tasks.read" },
+  { key: "vendors", label: "Vendors", href: "/vendors", permission: "vendors.contacts.read", also: ["vendors.manage", "vendors.commercial.read"] },
+  { key: "gifts", label: "Gift wishlist", href: "/host/gifts", permission: "gifts.manage" },
+  { key: "thank-yous", label: "Thank-yous", href: "/host/thanks", permission: "thanks.manage" },
+  { key: "people", label: "People", href: "/people", permission: "users.manage" },
   { key: "users", label: "Users and Roles", href: "/admin", permission: "users.manage" },
+  { key: "jobs", label: "Background jobs", href: "/admin/jobs", permission: "jobs.manage" },
   { key: "integrations", label: "Integrations", href: "/ops/integrations", permission: "integrations.read" },
   { key: "ops", label: "Ops recommendations", href: "/ops/recommendations", permission: "ops.approve" },
 ];
@@ -45,8 +48,5 @@ export function homeFor(role: string, permissions?: ReadonlySet<string>): string
 }
 
 export const SOON_FEATURES: Record<string, string> = {
-  "thank-yous": "Thank-you notes",
-  vendors: "Vendors",
-  tasks: "Tasks",
   budget: "Budget",
 };

@@ -23,6 +23,8 @@ export type Session = {
   weddingId: string;
   roles: string[];
   permissions: ReadonlySet<string>;
+  /** Stage 3 deny overrides for the selected wedding: never granted, not even by Flagsmith. */
+  denied: ReadonlySet<string>;
   isSuperAdmin: boolean;
   status: "active" | "suspended";
   weddings: WeddingAccess[];
@@ -35,6 +37,7 @@ type Ctx = {
   weddingId: string | null;
   roles: string[];
   permissions: string[];
+  denied?: string[];
 };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -55,6 +58,7 @@ export const getSession = cache(async (): Promise<Session | null> => {
     weddingId: ctx.weddingId ?? "",
     roles: ctx.roles,
     permissions: new Set(ctx.status === "active" ? ctx.permissions : []),
+    denied: new Set(ctx.denied ?? []),
     isSuperAdmin: ctx.isSuperAdmin,
     status: ctx.status,
     weddings: ctx.weddings,
@@ -63,26 +67,29 @@ export const getSession = cache(async (): Promise<Session | null> => {
 
 /** Permissions + roles of a user in some other wedding than the selected one (memoised). */
 const permissionsIn = cache(async (userId: string, weddingId: string) => {
-  const r = await rpc<{ permissions: string[]; roles: string[] }>("authz_permissions", { p_user: userId, p_wedding: weddingId });
-  return { permissions: new Set(r.permissions), roles: r.roles };
+  const r = await rpc<{ permissions: string[]; roles: string[]; denied?: string[] }>("authz_permissions", { p_user: userId, p_wedding: weddingId });
+  return { permissions: new Set(r.permissions), roles: r.roles, denied: new Set(r.denied ?? []) };
 });
 
 async function accessIn(ctx: Session, weddingId: string) {
-  if (weddingId === ctx.weddingId) return { permissions: ctx.permissions, role: ctx.role };
-  if (!UUID.test(weddingId)) return { permissions: new Set<string>(), role: "" };
+  if (weddingId === ctx.weddingId) return { permissions: ctx.permissions, role: ctx.role, denied: ctx.denied };
+  if (!UUID.test(weddingId)) return { permissions: new Set<string>(), role: "", denied: new Set<string>() };
   const r = await permissionsIn(ctx.userId, weddingId);
-  return { permissions: r.permissions, role: primaryRole(r.roles) };
+  return { permissions: r.permissions, role: primaryRole(r.roles), denied: r.denied };
 }
 
 /**
  * FROZEN SIGNATURE (contract C1). Throws AppError UNAUTHENTICATED (401) or FORBIDDEN (403).
  * Stage 2: Postgres (authz.effective_permissions: active user, assignment window, role
  * permission, wedding match, wedding-less super_admin), then E2's grant-only Flagsmith overrides.
+ * Stage 3: assignment status (pending/suspended/expired never grant) and per-assignment deny
+ * overrides, which also block Flagsmith grants.
  */
 export async function requirePermission(ctx: Session | null, key: Permission, weddingId: string): Promise<Session> {
   if (!ctx) throw new AppError("UNAUTHENTICATED");
   if (ctx.status !== "active") throw new AppError("FORBIDDEN", "Account suspended");
-  const { permissions, role } = await accessIn(ctx, weddingId);
+  const { permissions, role, denied } = await accessIn(ctx, weddingId);
+  if (denied.has(key)) throw new AppError("FORBIDDEN"); // Stage 3: deny beats allow, including Flagsmith grants
   const base = permissions.has(key);
   const allowed = role ? await applyOverrides({ userId: ctx.userId, role, weddingId }, key, base, { onEval: logFlagEval }) : base;
   if (!allowed) throw new AppError("FORBIDDEN");
@@ -100,6 +107,12 @@ export async function requireAnyPermission(ctx: Session | null, keys: readonly P
     }
   }
   throw last;
+}
+
+/** Signed in + `key` (or any of `keys`) in the currently selected wedding. */
+export async function requireSelected(key: Permission | readonly Permission[]): Promise<Session> {
+  const s = await getSession();
+  return typeof key === "string" ? requirePermission(s, key, s?.weddingId ?? "") : requireAnyPermission(s, key, s?.weddingId ?? "");
 }
 
 /** Same decision as requirePermission, as a boolean (for showing/hiding UI). */

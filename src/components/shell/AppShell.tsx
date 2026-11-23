@@ -11,6 +11,7 @@ import { RoleSwitcher } from "./RoleSwitcher";
 import { WeddingProvider, WeddingSelect } from "./WeddingContext";
 import { homeFor, navFor } from "./navConfig";
 import { PinkyBua } from "@/components/pinkybua/PinkyBua";
+import { NotificationBell } from "./NotificationBell";
 
 /** Staff chrome: top bar (wedding selector, date, user + role, notifications), role nav, demo banner. */
 export async function AppShell({ children }: { children: React.ReactNode }) {
@@ -36,9 +37,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
             {wedding?.wedding_date && <span className="hidden text-sm text-stone-500 sm:inline">{new Date(wedding.wedding_date).toLocaleDateString("en-IN", { dateStyle: "medium" })}</span>}
           </div>
           <div className="flex items-center gap-3 text-sm">
-            <span title="Notifications — coming soon" className="cursor-default text-stone-400" aria-label="Notifications (coming soon)">
-              🔔
-            </span>
+            {!blocked && <NotificationBell />}
             <span className="hidden text-stone-600 sm:inline">{user?.display_name ?? user?.email}</span>
             <span className="rounded bg-stone-100 px-2 py-0.5" data-testid="current-role">
               {s.role || "no role"}

@@ -15,7 +15,7 @@ const staff = (perms: string[]) => ({
   weddingId: "w",
   weddingName: "W",
   language: "en" as const,
-  session: { userId: "u", email: null, role: "host", weddingId: "w", roles: ["host"], permissions: new Set(perms), isSuperAdmin: false, status: "active" as const, weddings: [] },
+  session: { userId: "u", email: null, role: "host", weddingId: "w", roles: ["host"], permissions: new Set(perms), denied: new Set<string>(), isSuperAdmin: false, status: "active" as const, weddings: [] },
 });
 const claimed = (args: unknown, hash = argsHash(args)) => ({ id: "a1", tool: "set_my_language", args_json: args, args_hash: hash });
 

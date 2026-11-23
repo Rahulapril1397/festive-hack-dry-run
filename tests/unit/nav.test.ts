@@ -12,8 +12,15 @@ describe("role-to-nav map (from the permission set)", () => {
       expect.arrayContaining(["Overview", "Functions", "Families and RSVP", "Kitchen", "Stage and Queue", "Album", "Shagun Ledger", "Thank-yous", "Vendors", "Tasks", "Users and Roles"]),
     );
   });
-  it("kitchen: kitchen only — no ledger, stage or families", () => {
-    expect(keys("kitchen")).toEqual(["kitchen"]);
+  it("kitchen: kitchen + own tasks — no ledger, stage or families", () => {
+    expect(keys("kitchen")).toEqual(["kitchen", "tasks"]);
+  });
+  it("Stage 3 entries are live (no 'soon' items left in the nav)", () => {
+    expect(NAV.filter((n) => n.soon)).toEqual([]);
+    expect(keys("host")).toEqual(expect.arrayContaining(["tasks", "vendors", "gifts", "thank-yous"]));
+    expect(keys("coordinator")).not.toContain("thank-yous");
+    expect(keys("finance")).toContain("vendors");
+    expect(keys("stage_manager")).not.toContain("vendors");
   });
   it("finance sees the ledger; stage manager does not", () => {
     expect(keys("finance")).toContain("ledger");

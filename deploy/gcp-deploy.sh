@@ -266,6 +266,7 @@ SUPABASE_SERVICE_ROLE_KEY:pehle-supabase-service-role-key:required
 CLOCK_HMAC_SECRET:pehle-clock-hmac-secret:generate
 GUEST_COOKIE_SECRET:pehle-guest-cookie-secret:generate
 METRICS_TOKEN:pehle-metrics-token:generate
+JOBS_TOKEN:pehle-jobs-token:generate
 NUDGEBEE_WEBHOOK_SECRET:pehle-nudgebee-webhook-secret:generate
 SEED_USER_PASSWORD:pehle-seed-user-password:optional
 SARVAM_API_KEY:pehle-sarvam-api-key:optional

@@ -15,6 +15,11 @@ export const PERMISSIONS = [
   "users.manage", "roles.manage", "weddings.manage", "audit.read",
   "ops.approve", "integrations.read",
   "assistant.use",
+  // Stage 3
+  "jobs.manage",
+  "tasks.read", "tasks.manage", "tasks.update_own",
+  "gifts.manage", "thanks.manage",
+  "vendors.contacts.read", "vendors.manage", "vendors.commercial.read", "vendors.commercial.write", "vendors.documents.read",
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 

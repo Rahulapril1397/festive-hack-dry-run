@@ -14,4 +14,6 @@ spec:
         - ipBlock: { cidr: 35.191.0.0/16 }
         - namespaceSelector:
             matchLabels: { kubernetes.io/metadata.name: monitoring }
+        - podSelector:                       # Stage 3 job runner CronJob (same namespace)
+            matchLabels: { app.kubernetes.io/name: {{ include "pehle.name" . }}-jobs }
       ports: [{ port: {{ .Values.service.targetPort }} }]
