@@ -7,6 +7,10 @@ alter table wedding
   add column invitation_text       text,                 -- approved copy; may be sent to Sarvam
   add column photo_match_window_ms integer not null default 3000 check (photo_match_window_ms between 0 and 60000);
 
+-- Audit rows outlive the wedding they describe (and must not block re-seeding the demo wedding).
+alter table audit_log drop constraint audit_log_wedding_id_fkey,
+  add constraint audit_log_wedding_id_fkey foreign key (wedding_id) references wedding(id) on delete set null;
+
 -- Functions are EXECUTE-able by PUBLIC by default, which would expose them to the anon key via
 -- PostgREST /rpc. Every migration that adds functions or tables ends with `select lock_down_public();`.
 create or replace function lock_down_public() returns void language plpgsql as $$
