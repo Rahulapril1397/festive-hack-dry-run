@@ -20,8 +20,16 @@ export async function createFixture(sql: Sql, n: number) {
 export async function dropFixture(sql: Sql, weddingId: string) {
   await sql.begin(async (tx) => {
     await tx`alter table stage_log disable trigger stage_log_no_update_delete`;
+    await tx`alter table ledger_entry disable trigger ledger_entry_append_only`;
+    await tx`alter table ledger_reconciliation disable trigger ledger_reconciliation_append_only`;
+    await tx`delete from batch where event_id in (select id from event where wedding_id = ${weddingId})`;
+    await tx`delete from ledger_reconciliation where entry_id in (select id from ledger_entry where wedding_id = ${weddingId})`;
+    await tx`delete from ledger_entry where wedding_id = ${weddingId} and reverses_id is not null`;
+    await tx`delete from ledger_entry where wedding_id = ${weddingId}`;
     await tx`delete from stage_log where event_id in (select id from event where wedding_id = ${weddingId})`;
     await tx`alter table stage_log enable trigger stage_log_no_update_delete`;
+    await tx`alter table ledger_entry enable trigger ledger_entry_append_only`;
+    await tx`alter table ledger_reconciliation enable trigger ledger_reconciliation_append_only`;
     await tx`delete from wedding where id = ${weddingId}`;
   });
 }

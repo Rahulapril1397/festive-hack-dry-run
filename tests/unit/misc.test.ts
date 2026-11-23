@@ -69,3 +69,21 @@ describe("contracts", () => {
     expect(parsed.position).toBe(2);
   });
 });
+
+describe("static permission map — lanes E2/E3", () => {
+  it("kitchen sees no ledger; finance can read/export; only admin has ops.approve", () => {
+    expect(roleHas("kitchen", "ledger.read")).toBe(false);
+    expect(roleHas("finance", "ledger.read") && roleHas("finance", "ledger.export")).toBe(true);
+    expect(ROLES_WITH("ops.approve")).toEqual(["admin"]);
+  });
+  it("stage gets queue.skip only via the Flagsmith override, not the baseline", () => {
+    expect(roleHas("stage", "queue.skip")).toBe(false);
+    expect(roleHas("admin", "queue.skip")).toBe(true);
+  });
+});
+
+function ROLES_WITH(p: string) {
+  return Object.entries(STATIC_ROLE_PERMISSIONS)
+    .filter(([, ps]) => (ps as readonly string[]).includes(p))
+    .map(([r]) => r);
+}

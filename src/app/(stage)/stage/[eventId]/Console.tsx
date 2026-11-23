@@ -41,7 +41,7 @@ async function post(url: string, key: string, body?: unknown): Promise<ApiRes> {
   return { status: res.status, body: await res.json().catch(() => ({})) };
 }
 
-export function Console({ eventId, eventName, can }: { eventId: string; eventName: string; can: { call: boolean; manage: boolean; clock: boolean } }) {
+export function Console({ eventId, eventName, can }: { eventId: string; eventName: string; can: { call: boolean; manage: boolean; skip: boolean; clock: boolean } }) {
   const [snap, setSnap] = useState<Snapshot | null>(null);
   const [flash, setFlash] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -91,7 +91,7 @@ export function Console({ eventId, eventName, can }: { eventId: string; eventNam
 
   const waiting = snap?.entries.filter((e) => e.status === "waiting") ?? [];
   const active = snap?.entries.filter((e) => e.status !== "waiting") ?? [];
-  const allow = (e: Entry, a: EntryAction) => can.manage && canApply({ status: e.status, skipCount: e.skipCount }, a);
+  const allow = (e: Entry, a: EntryAction) => (a === "skip" ? can.skip : can.manage) && canApply({ status: e.status, skipCount: e.skipCount }, a);
 
   return (
     <main className="mx-auto grid max-w-6xl gap-6 p-4 lg:grid-cols-[1fr_22rem]">
@@ -174,7 +174,7 @@ export function Console({ eventId, eventName, can }: { eventId: string; eventNam
                   {e.isWalkIn && <span className="ml-2 rounded bg-sky-100 px-1.5 text-xs text-sky-800">walk-in</span>}
                   {e.skipCount > 0 && <span className="ml-2 rounded bg-amber-100 px-1.5 text-xs text-amber-800">skipped {e.skipCount}×</span>}
                 </span>
-                {can.manage && (
+                {can.skip && (
                   <button className="btn-secondary text-sm" disabled={busy} onClick={() => act("skip", e.entryId)}>
                     Skip
                   </button>

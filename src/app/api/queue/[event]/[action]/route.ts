@@ -19,7 +19,7 @@ const Body = z.object({ entryId: z.string().uuid().optional() }).default({});
 
 /**
  * POST /api/queue/:event/{skip|on-stage|served|no-show|pause|resume}
- * Header Idempotency-Key, permission queue.manage. Body { entryId } for entry actions.
+ * Header Idempotency-Key. Permission queue.skip for skip, queue.manage otherwise. Body { entryId }.
  */
 export const POST = handle(async (req: Request, { params }: Ctx) => {
   const { event, action: slug } = await params;
@@ -34,7 +34,7 @@ export const POST = handle(async (req: Request, { params }: Ctx) => {
     throw new AppError("BAD_REQUEST", "Body must be JSON");
   }
   const body = Body.parse(raw);
-  const { session } = await authorizeEvent(event, "queue.manage");
+  const { session } = await authorizeEvent(event, action === "skip" ? "queue.skip" : "queue.manage");
   const log = await queueAction(event, session.userId, key, action, body.entryId ?? null);
   return json({ logId: log.id, action: log.action, entryId: log.queue_entry_id, token: log.token_number });
 });

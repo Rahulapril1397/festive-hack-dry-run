@@ -56,12 +56,20 @@ export function demoSql(users: { id: string; email: string; role: string }[] = [
   const eventIds = DEMO_EVENTS.map((e) => q(e.id)).join(",");
   const lines: string[] = [
     "begin;",
+    // append-only tables: triggers off for this transaction only, to remove demo rows
     "alter table stage_log disable trigger stage_log_no_update_delete;",
-    `delete from photo_candidate where stage_log_id in (select id from stage_log where event_id in (${eventIds}));`,
+    "alter table ledger_entry disable trigger ledger_entry_append_only;",
+    "alter table ledger_reconciliation disable trigger ledger_reconciliation_append_only;",
+    `delete from batch where event_id in (${eventIds});`,
+    `delete from ledger_reconciliation where entry_id in (select id from ledger_entry where wedding_id = ${q(DEMO_WEDDING_ID)});`,
+    `delete from ledger_entry where wedding_id = ${q(DEMO_WEDDING_ID)} and reverses_id is not null;`,
+    `delete from ledger_entry where wedding_id = ${q(DEMO_WEDDING_ID)};`,
     `delete from stage_log where event_id in (${eventIds});`,
     "alter table stage_log enable trigger stage_log_no_update_delete;",
+    "alter table ledger_entry enable trigger ledger_entry_append_only;",
+    "alter table ledger_reconciliation enable trigger ledger_reconciliation_append_only;",
     `delete from wedding where id = ${q(DEMO_WEDDING_ID)};`,
-    `insert into wedding(id, name, is_demo) values (${q(DEMO_WEDDING_ID)}, 'Demo: Aarav and Meera', true);`,
+    `insert into wedding(id, name, is_demo, couple_names, wedding_date, contact_phone, invitation_text) values (${q(DEMO_WEDDING_ID)}, 'Demo: Aarav and Meera', true, 'Aarav & Meera', '2026-12-13', '+91 98000 00000', 'With joy in our hearts, we invite your family to celebrate our wedding.');`,
     ...DEMO_EVENTS.map(
       (e) => `insert into event(id, wedding_id, name, starts_at, language, tv_key) values (${q(e.id)}, ${q(DEMO_WEDDING_ID)}, ${q(e.name)}, ${q(e.startsAt)}, ${q(e.language)}, ${q(e.tvKey)});`,
     ),
@@ -72,6 +80,11 @@ export function demoSql(users: { id: string; email: string; role: string }[] = [
     ...fams.flatMap((f) =>
       DEMO_EVENTS.map((e) => `insert into rsvp(family_id, event_id, status, headcount) values (${q(f.id)}, ${q(e.id)}, ${f.rsvpYes ? "'yes', 4" : "'pending', 0"});`),
     ),
+    // a few shagun entries so the finance screen has data (no family link on one = unmatched envelope)
+    `insert into ledger_entry(wedding_id, family_id, event_id, token_reference, payment_method, amount, notes) values (${q(DEMO_WEDDING_ID)}, ${q(fams[4]!.id)}, ${q(DEMO_EVENTS[2].id)}, 'T-5', 'cash', 5100, 'Demo envelope');`,
+    `insert into ledger_entry(wedding_id, family_id, event_id, token_reference, payment_method, amount, notes) values (${q(DEMO_WEDDING_ID)}, ${q(fams[9]!.id)}, ${q(DEMO_EVENTS[2].id)}, 'T-10', 'upi', 11000, 'Demo UPI');`,
+    `insert into ledger_entry(wedding_id, event_id, token_reference, payment_method, amount, notes) values (${q(DEMO_WEDDING_ID)}, ${q(DEMO_EVENTS[2].id)}, 'unlabelled', 'cash', 2100, 'Envelope without name');`,
+    `insert into ledger_entry(wedding_id, family_id, event_id, payment_method, gift_type, notes) values (${q(DEMO_WEDDING_ID)}, ${q(fams[14]!.id)}, ${q(DEMO_EVENTS[2].id)}, 'boxed_gift', 'dinner set', 'Boxed gift');`,
     ...users.flatMap((u) => [
       `insert into app_user(id, email, display_name) values (${q(u.id)}, ${q(u.email)}, ${q(`Demo ${u.role}`)}) on conflict (id) do update set email = excluded.email;`,
       `insert into user_role(user_id, role_id, wedding_id) select ${q(u.id)}, id, ${q(DEMO_WEDDING_ID)} from role where key = ${q(u.role)} on conflict do nothing;`,
