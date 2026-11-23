@@ -77,7 +77,7 @@ export function TvBoard({ eventId, tvKey, eventName, initial }: { eventId: strin
   }, [feed?.announcementId]);
 
   async function announce(id: string) {
-    const outcome = await fetchAnnouncement(id);
+    const outcome = await fetchAnnouncement(id, fetch, undefined, tvKey);
     if (!soundRef.current) return;
     if (outcome.kind === "audio") {
       const url = URL.createObjectURL(outcome.blob);
@@ -93,7 +93,7 @@ export function TvBoard({ eventId, tvKey, eventName, initial }: { eventId: strin
     void fetch("/api/tv/telemetry", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ event: "chime", eventId, announcementId: id, reason: outcome.kind === "chime" ? outcome.reason : "play_failed" }),
+      body: JSON.stringify({ event: "chime", eventId, key: tvKey, announcementId: id, reason: outcome.kind === "chime" ? outcome.reason : "play_failed" }),
       keepalive: true,
     }).catch(() => {});
     await playAndWait(chime.current).catch(() => {});

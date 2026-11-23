@@ -12,6 +12,7 @@ export async function fetchAnnouncement(
   announcementId: string,
   fetchImpl: typeof fetch = fetch,
   timeoutMs = AUDIO_TIMEOUT_MS,
+  tvKey?: string,
 ): Promise<AnnouncementOutcome> {
   const ctrl = new AbortController();
   let timedOut = false;
@@ -20,7 +21,8 @@ export async function fetchAnnouncement(
     ctrl.abort();
   }, timeoutMs);
   try {
-    const res = await fetchImpl(`/api/tv/announcement/${encodeURIComponent(announcementId)}/audio`, {
+    const qs = tvKey ? `?key=${encodeURIComponent(tvKey)}` : "";
+    const res = await fetchImpl(`/api/tv/announcement/${encodeURIComponent(announcementId)}/audio${qs}`, {
       signal: ctrl.signal,
       cache: "no-store",
     });
