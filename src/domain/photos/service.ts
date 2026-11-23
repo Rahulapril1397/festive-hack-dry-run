@@ -13,9 +13,10 @@ export const BUCKET = "photos";
 const THUMB_TTL_S = 120;
 
 export const NewBatch = z.object({ eventId: z.string().uuid(), cameraName: z.string().trim().min(1).max(60) });
-export const UploadRequest = z.object({ files: z.array(z.object({ name: z.string().min(1).max(200) })).min(1).max(200) });
+const Hash = z.string().regex(/^[0-9a-f]{64}$/);
+export const UploadRequest = z.object({ files: z.array(z.object({ name: z.string().min(1).max(200), hash: Hash.optional() })).min(1).max(200) });
 export const PhotoMeta = z.object({
-  photos: z.array(z.object({ path: z.string().min(1).max(400), capturedAtMs: z.number().int().nullable() })).min(1).max(200),
+  photos: z.array(z.object({ path: z.string().min(1).max(400), capturedAtMs: z.number().int().nullable(), contentHash: Hash.optional() })).min(1).max(200),
 });
 export const Calibration = z.object({ qrText: z.string().min(10).max(200), exifMs: z.number().int() });
 
@@ -45,16 +46,21 @@ export async function createBatch(s: Session, input: z.infer<typeof NewBatch>) {
 
 const safeName = (n: string) => n.replace(/[^A-Za-z0-9._-]/g, "_").slice(-80);
 
-export async function signedUploads(s: Session, batchId: string, files: { name: string }[]) {
+/** Signed URLs for files not already in the batch (matched by SHA-256 content hash → resumable, no duplicates). */
+export async function signedUploads(s: Session, batchId: string, files: { name: string; hash?: string }[]) {
   const b = await batchFor(s, batchId);
-  return Promise.all(
-    files.map(async (f) => {
+  const hashes = files.flatMap((f) => (f.hash ? [f.hash] : []));
+  const { data: have } = hashes.length ? await db().from("photo").select("content_hash").eq("batch_id", b.id).in("content_hash", hashes) : { data: [] };
+  const existing = new Set((have ?? []).map((r) => r.content_hash as string));
+  const uploads = await Promise.all(
+    files.filter((f) => !f.hash || !existing.has(f.hash)).map(async (f) => {
       const path = `${b.event_id}/${b.id}/${randomUUID()}-${safeName(f.name)}`;
       const { data, error } = await db().storage.from(BUCKET).createSignedUploadUrl(path);
       if (error || !data) throw new Error(`signed upload failed: ${error?.message}`);
-      return { name: f.name, path, signedUrl: data.signedUrl, token: data.token };
+      return { name: f.name, hash: f.hash ?? null, path, signedUrl: data.signedUrl, token: data.token };
     }),
   );
+  return { uploads, existing: [...existing] };
 }
 
 /** Store raw capture times (never overwritten), then match. Paths must be inside this batch. */
@@ -62,11 +68,17 @@ export async function recordPhotos(s: Session, batchId: string, photos: z.infer<
   const b = await batchFor(s, batchId);
   const prefix = `${b.event_id}/${b.id}/`;
   if (photos.some((p) => !p.path.startsWith(prefix) || p.path.includes(".."))) throw new AppError("BAD_REQUEST", "Path outside batch");
-  const rows = photos.map((p) => {
-    const captured = p.capturedAtMs == null ? null : new Date(p.capturedAtMs);
-    const corrected = captured && b.clock_offset_ms != null ? new Date(captured.getTime() + Number(b.clock_offset_ms)) : null;
-    return { batch_id: b.id, storage_path: p.path, captured_at: captured?.toISOString() ?? null, corrected_at: corrected?.toISOString() ?? null };
-  });
+  const hashes = photos.flatMap((p) => (p.contentHash ? [p.contentHash] : []));
+  const { data: have } = hashes.length ? await db().from("photo").select("content_hash").eq("batch_id", b.id).in("content_hash", hashes) : { data: [] };
+  const existing = new Set((have ?? []).map((r) => r.content_hash as string));
+  const rows = photos
+    .filter((p) => !p.contentHash || !existing.has(p.contentHash))
+    .map((p) => {
+      const captured = p.capturedAtMs == null ? null : new Date(p.capturedAtMs);
+      const corrected = captured && b.clock_offset_ms != null ? new Date(captured.getTime() + Number(b.clock_offset_ms)) : null;
+      return { batch_id: b.id, storage_path: p.path, content_hash: p.contentHash ?? null, captured_at: captured?.toISOString() ?? null, corrected_at: corrected?.toISOString() ?? null };
+    });
+  if (!rows.length) return { stored: 0 };
   const { error } = await db().from("photo").upsert(rows, { onConflict: "storage_path", ignoreDuplicates: true });
   if (error) throw new Error(error.message);
   await runMatching(b.id);
@@ -124,15 +136,18 @@ export type ReviewItem = {
   candidates: { id: string; token: number | null; action: string; deltaMs: number; calledAt: string }[];
 };
 
-export async function reviewList(s: Session, eventId: string): Promise<ReviewItem[]> {
+export const REVIEW_PAGE = 30;
+
+export async function reviewList(s: Session, eventId: string, opts: { bucket?: Bucket; page?: number } = {}): Promise<ReviewItem[]> {
   const ev = await getEvent(eventId);
   if (ev.wedding_id !== s.weddingId) throw new AppError("EVENT_NOT_FOUND");
   const { data: photos, error } = await db()
     .from("photo")
     .select("id, storage_path, captured_at, corrected_at, review_status, family:family_id(token_number), batch:batch_id!inner(event_id, camera_name), photo_candidate(id, delta_ms, decision, stage_log:stage_log_id(action, token_number, created_at))")
     .eq("batch.event_id", eventId)
+    .match(opts.bucket ? { review_status: opts.bucket } : {})
     .order("corrected_at", { ascending: true, nullsFirst: false })
-    .limit(300);
+    .range((opts.page ?? 0) * REVIEW_PAGE, (opts.page ?? 0) * REVIEW_PAGE + REVIEW_PAGE - 1);
   if (error) throw new Error(error.message);
   const paths = (photos ?? []).map((p) => p.storage_path);
   const signed = paths.length ? (await db().storage.from(BUCKET).createSignedUrls(paths, THUMB_TTL_S)).data ?? [] : [];
@@ -151,6 +166,16 @@ export async function reviewList(s: Session, eventId: string): Promise<ReviewIte
       .sort((a, b) => Math.abs(a.delta_ms) - Math.abs(b.delta_ms))
       .map((c) => ({ id: c.id, token: c.stage_log!.token_number, action: c.stage_log!.action, deltaMs: c.delta_ms, calledAt: c.stage_log!.created_at })),
   }));
+}
+
+/** Bucket counts for the whole event (the list itself is paged). */
+export async function reviewCounts(s: Session, eventId: string): Promise<Record<Bucket, number>> {
+  const ev = await getEvent(eventId);
+  if (ev.wedding_id !== s.weddingId) throw new AppError("EVENT_NOT_FOUND");
+  const { data } = await db().from("photo").select("review_status, batch:batch_id!inner(event_id)").eq("batch.event_id", eventId);
+  const out: Record<Bucket, number> = { matched: 0, check: 0, unmatched: 0 };
+  for (const p of data ?? []) out[p.review_status as Bucket]++;
+  return out;
 }
 
 export async function decide(s: Session, candidateId: string, decision: "confirmed" | "rejected") {

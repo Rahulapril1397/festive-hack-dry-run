@@ -4,6 +4,7 @@ import { db, rpc } from "@/lib/db/service";
 import { hasPermission, type Session } from "@/lib/authz";
 import { normalizePhone } from "@/domain/checkin/phone";
 import { AppError } from "@/lib/errors";
+import { familyLink } from "@/domain/checkin/service";
 
 export type FunctionRow = {
   eventId: string;
@@ -121,22 +122,29 @@ export async function createEvent(s: Session, input: z.infer<typeof CreateEvent>
   return rpc<{ id: string }>("host_create_event", { p_wedding: s.weddingId, p_actor: s.userId, p_name: input.name, p_starts_at: input.startsAt ?? null, p_language: input.language });
 }
 
-/** Families and RSVP table (staff with family.read). Phone shown as last 4 digits only. */
-export async function familiesWithRsvp(s: Session) {
-  const [{ data: fams }, { data: events }] = await Promise.all([
-    db().from("family").select("id, name, phone, language, token_number, is_walk_in, rsvp(event_id, status, headcount)").eq("wedding_id", s.weddingId).order("name"),
+/** Families and RSVP table (families.read). Phone as last 4 digits; link only with families.write. */
+export async function familiesWithRsvp(s: Session, withLinks = false) {
+  const [{ data: fams }, { data: events }, { data: checkins }] = await Promise.all([
+    db().from("family").select("id, name, phone, language, token_number, is_walk_in, link_key, headcount_max, rsvp(event_id, status, headcount)").eq("wedding_id", s.weddingId).order("name"),
     db().from("event").select("id, name").eq("wedding_id", s.weddingId).order("starts_at"),
+    db().from("checkin").select("family_id, event_id, event:event_id!inner(wedding_id)").eq("event.wedding_id", s.weddingId),
   ]);
+  const checkedIn = new Map<string, string[]>();
+  for (const c of checkins ?? []) checkedIn.set(c.family_id, [...(checkedIn.get(c.family_id) ?? []), c.event_id]);
   return {
-    events: events ?? [],
+    events: (events ?? []) as { id: string; name: string }[],
     families: (fams ?? []).map((f) => ({
-      id: f.id,
-      name: f.name,
+      id: f.id as string,
+      name: f.name as string,
       phoneLast4: f.phone ? String(f.phone).slice(-4) : null,
-      language: f.language,
-      token: f.token_number,
-      isWalkIn: f.is_walk_in,
-      rsvp: Object.fromEntries(((f.rsvp ?? []) as { event_id: string; status: string; headcount: number }[]).map((r) => [r.event_id, { status: r.status, headcount: r.headcount }])),
+      language: f.language as string,
+      token: f.token_number as number | null,
+      isWalkIn: f.is_walk_in as boolean,
+      headcountMax: f.headcount_max as number | null,
+      link: withLinks ? familyLink(f.link_key as string) : null,
+      checkedIn: checkedIn.get(f.id as string) ?? [],
+      rsvp: Object.fromEntries(((f.rsvp ?? []) as { event_id: string; status: string; headcount: number }[]).map((r) => [r.event_id, { status: r.status, headcount: r.headcount }])) as Record<string, { status: string; headcount: number }>,
     })),
   };
 }
+export type FamilyRow = Awaited<ReturnType<typeof familiesWithRsvp>>["families"][number];

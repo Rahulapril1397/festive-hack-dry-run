@@ -50,7 +50,7 @@ test("host: no ledger amounts leak to a role without ledger.read", async ({ page
 });
 
 test("every seeded role lands on a screen and every nav item opens", async ({ page }) => {
-  for (const role of ["host", "stage", "kitchen", "photographer", "admin", "finance"]) {
+  for (const role of ["host", "stage", "kitchen", "photographer", "admin", "finance", "coordinator", "superadmin"]) {
     await page.context().clearCookies();
     await loginAs(page, role);
     const links = await page.getByTestId("side-nav").locator("a").evaluateAll((as) => as.map((a) => (a as HTMLAnchorElement).getAttribute("href")!));

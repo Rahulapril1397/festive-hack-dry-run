@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requirePage } from "@/components/shell/guard";
 import { overview } from "@/domain/host/queries";
+import { AutoRefresh } from "@/components/shell/AutoRefresh";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +11,14 @@ export default async function HostOverview() {
   const k = o.kpis;
   return (
     <main className="flex flex-col gap-6 p-4 md:p-6">
+      <AutoRefresh ms={5000} />
       <h1 className="text-2xl font-bold">Overview</h1>
+      {o.functions.length === 0 && (
+        <div className="rounded-xl border border-dashed bg-white p-6 text-center" data-testid="overview-empty">
+          <p className="font-semibold">No functions yet.</p>
+          <p className="text-sm text-stone-600">Create the first function under Functions, then import families under Families and RSVP.</p>
+        </div>
+      )}
       <section className="grid grid-cols-2 gap-3 md:grid-cols-5" data-testid="kpis">
         <Kpi label="RSVP yes (all functions)" value={k.rsvpYes} />
         <Kpi label="Expected plates" value={k.expectedPlates} />

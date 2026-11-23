@@ -14,13 +14,19 @@ Next.js 15 (App Router) · TypeScript strict · Tailwind v4 · Zod · Supabase P
 | `supabase db push` | apply migrations to staging / prod (run before `deploy-prod`) |
 | no Supabase locally? | any Postgres ≥15 works for SQL tests: apply `supabase/migrations/*.sql` in order, set `DATABASE_URL` (CI does this) |
 | `npx tsx scripts/nudgebee-test.ts [--bad-signature]` | post a signed test recommendation (needs `APP_URL`, `NUDGEBEE_WEBHOOK_SECRET`) |
-| `npm run migrate` | apply pending migrations (tracked in `pehle_meta.migration`; back-fills hand-migrated DBs) |
+| `npm run migrate` | apply pending migrations (tracked in `pehle_meta.migration`; back-fills hand-migrated DBs). Also runs in prod as the Helm pre-upgrade hook |
+| `npm run audit:routes` | fails if any route handler neither checks a permission nor calls `publicRoute("why")` (CI) |
+| `npm run grant:super-admin -- <email>` | make an existing staff user a super admin (needs `DATABASE_URL`) |
+| `npx tsx scripts/pregen-tts.ts` | pre-generate TV announcements 1–300 into the private `tts` bucket (costs Sarvam calls) |
 | `bash deploy/gcp-deploy.sh` | one-command production deploy to GKE (see `deploy/README.md`) |
 | deploy / rollback | `deploy/README.md` |
 
 ## Rules
 - **All multi-row writes are Postgres functions** (`0002_queue.sql`, `0101_guest.sql`, `02xx`), called via `rpc()` in `src/lib/db/service.ts`. One function = one transaction. SQL raises a stable code (`QUEUE_PAUSED` …) that `rpc()` turns into `AppError`; `src/lib/errors.ts` maps codes to HTTP.
-- **Every API route checks permission server-side** with `requirePermission` (or `authorizeEvent`) before calling the service client. The service client bypasses RLS.
+- **Every API route checks permission server-side** with `requirePermission` (or a guard that calls it: `authorizeEvent`, `requireAdmin`, `ledgerAccess`, `resolveCaller`) before calling the service client, or is marked `publicRoute("reason")`. `npm run audit:routes` enforces this in CI. The service client bypasses RLS.
+- **Permissions live in Postgres** (Stage 2): `authz.effective_permissions(user, wedding)` — active user, assignment window, role permission, wedding match, wedding-less `super_admin`. `requirePermission` (frozen signature) resolves them once per request, then applies E2's grant-only Flagsmith overrides. `src/lib/authz/staticMap.ts` is a **test fixture** that must equal the defaults in `0010_rbac.sql`. Suspended users get 403 everywhere; the last active super admin cannot be removed (DB trigger).
+- **PinkyBua** (`src/lib/assistant`): tools call domain services with the caller's scope; the list is filtered by permission before the model sees it and re-checked at execution; write tools only propose (single-use token, 5 min, args hash, permission re-check, audited on confirm). The model never gets secrets or DB access. Add tools in `src/lib/assistant/tools/index.ts`.
+- **No mock integrations outside tests/local** (`src/lib/mockPolicy.ts`): in staging/prod a missing Sarvam/Flagsmith key means "off" with safe fallbacks.
 - **RLS is on with no policies**: the browser's anon key can read nothing. Do not add policies in Stage 1.
 - **stage_log, ledger_entry, ledger_reconciliation are append-only** (triggers). Never UPDATE/DELETE; write a new row (ledger corrections = reversing entry + new entry). `photo.captured_at` is immutable.
 - **Every migration ends with `select lock_down_public();`** (0003) — new functions are otherwise EXECUTE-able by PUBLIC, i.e. the anon key via `/rpc`. An integration test enforces this.
@@ -31,18 +37,18 @@ Next.js 15 (App Router) · TypeScript strict · Tailwind v4 · Zod · Supabase P
 - **The TV never sees PII.** It reads `tv_feed` only (token, next_token, instruction, language, announcement_id). Do not add columns to `tv_feed` or join anything into TV routes.
 - Mutating queue routes require an `Idempotency-Key` header; the client generates one per press and reuses it on retry (`src/domain/queue/idempotency.ts`).
 - No `NEXT_PUBLIC_*` env: the server hands Supabase URL + anon key to the login form, so one image runs in staging and prod.
-- Migrations: E1 `0001`–`0099`, E2 `0101`–`0199`, E3 `0201`–`0299`.
+- Migrations: E1 `0001`–`0099`, E2 `0101`–`0199`, E3 `0201`–`0299`. Every migration must be safe to apply to a database that already has later-numbered migrations (ranges interleave).
 
 ## Folder ownership
 | Path | Owner |
 |---|---|
-| `src/lib/db`, `src/lib/authz`, `src/lib/http.ts`, `src/lib/env.ts`, `src/lib/errors.ts`, `src/lib/clock.ts` | E1 |
+| `src/lib/db`, `src/lib/authz`, `src/lib/http.ts`, `src/lib/log.ts`, `src/lib/env.ts`, `src/lib/errors.ts`, `src/lib/clock.ts`, `src/contracts/admin.ts`, `src/domain/admin`, `src/app/api/admin`, `src/app/login` | E1 |
 | `src/domain/queue`, `src/domain/checkin`, `src/contracts/queue.ts` | E1 |
 | `src/app/(stage)`, `src/app/(tv)`, `src/app/checkin`, `src/app/login`, `src/app/api/{queue,checkin,clock,tv/feed,tv/stream,health,events,auth}` | E1 |
 | `supabase/migrations/00xx`, `scripts/`, `deploy/` (except `deploy/monitoring`), `.github/` | E1 |
-| `src/app/(guest)`, `src/domain/rsvp`, `src/i18n`, `src/middleware.ts`, `src/lib/{sarvam,flags,metrics,nudgebee}` | E2 |
+| `src/app/(guest)`, `src/domain/rsvp`, `src/i18n`, `src/middleware.ts`, `src/lib/{sarvam,flags,metrics,nudgebee,assistant}`, `src/components/pinkybua`, `src/app/api/assistant`, `tests/assistant` | E2 |
 | `src/app/api/{tv/announcement,tv/telemetry,metrics,guest,integrations,ops}`, `src/app/(ops)`, `deploy/monitoring`, `supabase/migrations/01xx` | E2 |
-| `src/app/{(host),(kitchen),(admin),(photographer),(ledger)}`, `src/components/shell`, `src/domain/{ledger,photos,host}` | E3 |
+| `src/app/{(host),(kitchen),(admin),(photographer),(ledger)}`, `src/components/shell` (incl. `useWedding()`), `src/domain/{ledger,photos,host}`, `tests/e2e` | E3 |
 | `src/app/api/{ledger,photos,host,kitchen}`, `supabase/migrations/02xx` | E3 |
 
 If you need a change in another lane, stop and ask its owner.
@@ -59,6 +65,14 @@ If you need a change in another lane, stop and ask its owner.
 | C6 | `rsvp(family_id, event_id, status 'pending'\|'yes'\|'no', headcount 0..10, updated_at)`; save via `rsvp_save()` | E2 → E3 |
 | — | `applyOverrides(ctx, key, baseDecision)` (`src/lib/flags/overrides.ts`), called inside `requirePermission`; grant-only, allowlisted roles, fail → baseline | E2 → E1 |
 | — | `v_event_plates`, `v_ledger_entry`, `src/domain/ledger`, `src/domain/photos` | E3 → E1, E2 |
+
+## Stage 2 contracts
+| | Interface | Provider → consumer |
+|---|---|---|
+| C7 | Postgres-backed `requirePermission`, permission catalogue (`src/lib/authz/catalogue.ts`), `Session.permissions` / `weddings` | E1 → E2, E3 |
+| C8 | Admin API (`src/contracts/admin.ts`): users, assignments, roles, audit, weddings, families import, rotate-link | E1 → E3 admin + families UI |
+| C9 | `<PinkyBua mode />`, `/api/assistant/{message,confirm,cancel}`, tool registry | E2 → all |
+| C10 | `useWedding()` / `<WeddingSelect />` (selected wedding cookie `pa_wedding`), Playwright harness `tests/e2e/harness.ts` | E3 → all |
 
 ## API (E1)
 | Route | Auth | Notes |
@@ -97,6 +111,15 @@ If you need a change in another lane, stop and ask its owner.
 | `POST /api/host/family`, `POST /api/host/event` | `family.write` / `event.write` | add family returns the one-time code |
 | `POST /api/kitchen/meal-status` | `kitchen.write` | |
 
+## API (Stage 2)
+| Route | Auth | Notes |
+|---|---|---|
+| `/api/admin/*` | see `src/contracts/admin.ts` | users.manage · roles.manage (super admin) · weddings.manage (super admin) · audit.read · families.write |
+| `PUT /api/host/families/:id/rsvp` | `rsvp.manage` | edit on behalf of a family, audited |
+| `POST /api/session/wedding` `{weddingId}` | signed in | only weddings the user can access |
+| `POST /api/assistant/message` `{mode, sessionId?, text}` | `assistant.use` or family cookie | ≤4 model calls, 20 s timeout, friendly errors |
+| `POST /api/assistant/confirm` `{mode, actionId, token}` / `cancel` | same | 403 ACTION_INVALID · 409 ACTION_USED · 410 ACTION_EXPIRED |
+
 ## Open items to reconcile
 - Permission keys in `src/lib/authz/staticMap.ts` vs spec §3.3.
 - Env names in `.env.example` vs doc_00 §8.
@@ -104,3 +127,7 @@ If you need a change in another lane, stop and ask its owner.
 - NudgeBee: webhook format and telemetry path are not yet confirmed with NudgeBee; adapt `src/lib/nudgebee/signature.ts` only.
 - `queue.skip` for stage depends on the Flagsmith flag (doc_e2 T7). With Flagsmith configured but down, stage cannot SKIP (baseline). Confirm this is wanted for the wedding day, or add `queue.skip` to the stage baseline.
 - doc_e2 says the guest cookie is "signed with APP_BASE_URL secret"; implemented as `GUEST_COOKIE_SECRET`.
+- Stage 2 default role permission sets (spec §3.2) are interpreted in `0010_rbac.sql`; confirm with the spec owner. Notably stage managers no longer see Families (phones), coordinators have no ledger access.
+- Mock integrations: doc_e2_s2 says "mock only when NODE_ENV is test"; local development (`APP_ENV=local`) also keeps mocks so the app runs without keys.
+- PinkyBua real-model eval (`tests/assistant/RESULTS.md`) not yet run.
+- Supabase Auth → URL Configuration must allow `<APP_URL>/login/accept` for invite links.
