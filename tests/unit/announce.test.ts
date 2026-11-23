@@ -19,7 +19,7 @@ describe("C3 announcement audio", () => {
     const res = await announcementAudio(7, "en", d);
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("audio/wav");
-    expect(record).toHaveBeenCalledWith("success", expect.any(Number));
+    expect(record).toHaveBeenCalledWith("success", expect.any(Number), "sarvam");
   });
 
   it("repeat is served from the (language, text) cache", async () => {
@@ -27,6 +27,17 @@ describe("C3 announcement audio", () => {
     await announcementAudio(7, "hi", d);
     await announcementAudio(7, "hi", d);
     expect(d.client.tts).toHaveBeenCalledTimes(1);
+  });
+
+  it("storage tier: a pre-generated clip is served without calling Sarvam; new clips are stored", async () => {
+    const put = vi.fn(async () => {});
+    const { d, record } = deps({ store: { get: async () => wav, put } });
+    expect((await announcementAudio(9, "hi", d)).status).toBe(200);
+    expect(d.client.tts).not.toHaveBeenCalled();
+    expect(record).toHaveBeenCalledWith("success", expect.any(Number), "storage");
+    const miss = deps({ store: { get: async () => null, put } });
+    await announcementAudio(10, "hi", miss.d);
+    expect(put).toHaveBeenCalledTimes(1);
   });
 
   it("SARVAM_FORCE_FAIL → 204 + failure metric", async () => {

@@ -3,10 +3,12 @@
  *   POST {SARVAM_API_URL}/translate       { input, source_language_code, target_language_code } → { translated_text }
  *   POST {SARVAM_API_URL}/text-to-speech  { text, language_code, model, speaker }              → { audios: [base64 WAV] }
  *   header api-subscription-key
- * 3-second timeout on every call. Mock mode when SARVAM_API_KEY is empty. SARVAM_FORCE_FAIL=1
+ * 3-second timeout on every call. Empty SARVAM_API_KEY: mock in tests/local only; in staging/prod
+ * the client is "off" (translate returns English, tts throws → TV chime). SARVAM_FORCE_FAIL=1
  * makes tts throw. Only static UI copy and token announcements are ever sent — no names/phones/amounts.
  */
 import { LANGUAGES, type AppLanguage } from "./languages";
+import { mockAllowed } from "@/lib/mockPolicy";
 
 export class SarvamError extends Error {
   constructor(
@@ -25,6 +27,8 @@ export type SarvamOptions = {
   forceFail?: boolean;
   timeoutMs?: number;
   fetchImpl?: typeof fetch;
+  /** default: mockAllowed() */
+  allowMock?: boolean;
 };
 
 export type TtsAudio = { bytes: Uint8Array; contentType: string };
@@ -34,7 +38,8 @@ export function createSarvamClient(opts: SarvamOptions = {}) {
   const apiUrl = (opts.apiUrl ?? "https://api.sarvam.ai").replace(/\/$/, "");
   const timeoutMs = opts.timeoutMs ?? 3000;
   const fetchImpl = opts.fetchImpl ?? fetch;
-  const mock = !apiKey;
+  const mock = !apiKey && (opts.allowMock ?? mockAllowed());
+  const off = !apiKey && !mock;
 
   async function post(path: string, body: unknown): Promise<unknown> {
     const ctrl = new AbortController();
@@ -58,9 +63,10 @@ export function createSarvamClient(opts: SarvamOptions = {}) {
 
   return {
     mock,
+    off,
     async translate(text: string, targetLang: AppLanguage): Promise<string> {
       if (targetLang === "en" || !text.trim()) return text;
-      if (mock) return text; // mock: English stays English (page never blocks)
+      if (mock || off) return text; // English stays English (page never blocks)
       const r = (await post("/translate", {
         input: text,
         source_language_code: "en-IN",
@@ -72,6 +78,7 @@ export function createSarvamClient(opts: SarvamOptions = {}) {
     async tts(text: string, lang: AppLanguage): Promise<TtsAudio> {
       if (opts.forceFail) throw new SarvamError("forced", "SARVAM_FORCE_FAIL=1");
       if (mock) return { bytes: mockTone(), contentType: "audio/wav" };
+      if (off) throw new SarvamError("error", "SARVAM_API_KEY not configured");
       const r = (await post("/text-to-speech", {
         text,
         language_code: LANGUAGES[lang].sarvam,

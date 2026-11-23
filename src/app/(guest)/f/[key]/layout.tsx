@@ -1,6 +1,7 @@
 import { loadGuest } from "@/domain/rsvp/service";
 import { DemoBanner } from "@/components/shell/DemoBanner";
 import { EN } from "@/i18n";
+import { PinkyBua } from "@/components/pinkybua/PinkyBua";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +19,8 @@ export default async function GuestLayout({ children, params }: { children: Reac
   return (
     <div className="min-h-dvh bg-gradient-to-b from-rose-50 to-stone-50">
       <DemoBanner show={g.wedding.isDemo} />
-      <div className="mx-auto max-w-md px-4 pb-16 pt-6">{children}</div>
+      <div className="mx-auto max-w-md px-4 pb-24 pt-6">{children}</div>
+      <PinkyBua mode="guest" language={g.family.language} />
     </div>
   );
 }

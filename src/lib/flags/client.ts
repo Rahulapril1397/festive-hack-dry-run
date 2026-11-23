@@ -2,9 +2,11 @@
  * Flagsmith Flags API (server-side environment key), verified against the published OpenAPI:
  *   GET  {FLAGSMITH_API_URL}/flags/       header X-Environment-Key → [{ feature: { name }, enabled, feature_state_value }]
  *   POST {FLAGSMITH_API_URL}/identities/  { identifier, traits: [{ trait_key, trait_value }] } → { flags: [...] }
- * Every call has a timeout; results are cached for 30 s. No key → local defaults (mock mode).
+ * Every call has a timeout; results are cached for 30 s. No key → local defaults in tests/local
+ * only; in staging/prod a missing key throws, so callers take their safe fallback.
  */
 import { FLAG_DEFAULTS, type FlagName } from "./defaults";
+import { mockAllowed } from "@/lib/mockPolicy";
 
 export type FlagMap = Partial<Record<string, { enabled: boolean; value: unknown }>>;
 
@@ -15,6 +17,7 @@ export type FlagClientOptions = {
   timeoutMs?: number;
   ttlMs?: number;
   now?: () => number;
+  allowMock?: boolean;
 };
 
 type RawFlag = { feature?: { name?: unknown }; enabled?: unknown; feature_state_value?: unknown };
@@ -40,7 +43,8 @@ export function createFlagClient(opts: FlagClientOptions = {}) {
   const now = opts.now ?? Date.now;
   const cache = new Map<string, { at: number; flags: FlagMap }>();
 
-  const mock = !serverKey;
+  const mock = !serverKey && (opts.allowMock ?? mockAllowed());
+  const unconfigured = !serverKey && !mock;
   const mockFlags = (): FlagMap =>
     Object.fromEntries(Object.entries(FLAG_DEFAULTS).map(([k, v]) => [k, { enabled: v, value: null }]));
 
@@ -72,14 +76,17 @@ export function createFlagClient(opts: FlagClientOptions = {}) {
 
   return {
     mock,
+    configured: !!serverKey,
     /** Environment flags. Throws FlagsmithError on timeout/outage/invalid response. */
     environmentFlags(): Promise<FlagMap> {
       if (mock) return Promise.resolve(mockFlags());
+      if (unconfigured) return Promise.reject(new FlagsmithError("FLAGSMITH_SERVER_KEY not configured"));
       return cached("env", async () => toMap(await call("/flags/", { method: "GET" })));
     },
     /** Flags for an identity (used for per-role overrides). */
     identityFlags(identifier: string, traits: Record<string, string>): Promise<FlagMap> {
       if (mock) return Promise.resolve(mockFlags());
+      if (unconfigured) return Promise.reject(new FlagsmithError("FLAGSMITH_SERVER_KEY not configured"));
       return cached(`id:${identifier}`, async () => {
         const body = await call("/identities/", {
           method: "POST",

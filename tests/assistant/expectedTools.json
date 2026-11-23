@@ -1,0 +1,11 @@
+{
+  "super_admin": ["queue_status", "rsvp_summary", "find_family_token", "photo_review_counts", "ledger_summary", "explain_screen", "set_my_language"],
+  "admin": ["queue_status", "rsvp_summary", "find_family_token", "photo_review_counts", "ledger_summary", "explain_screen", "set_my_language"],
+  "host": ["queue_status", "rsvp_summary", "find_family_token", "photo_review_counts", "ledger_summary", "explain_screen", "set_my_language"],
+  "coordinator": ["queue_status", "rsvp_summary", "find_family_token", "photo_review_counts", "explain_screen", "set_my_language"],
+  "stage_manager": ["queue_status", "find_family_token", "explain_screen", "set_my_language"],
+  "kitchen": ["rsvp_summary", "explain_screen", "set_my_language"],
+  "photographer": ["photo_review_counts", "explain_screen", "set_my_language"],
+  "finance": ["rsvp_summary", "ledger_summary", "explain_screen", "set_my_language"],
+  "guest": ["my_rsvp", "my_queue", "faq", "set_my_language"]
+}

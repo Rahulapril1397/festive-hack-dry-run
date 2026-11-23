@@ -63,7 +63,7 @@ describe("isEnabled", () => {
 });
 
 describe("applyOverrides", () => {
-  const ctx = { userId: "u", role: "stage", weddingId: "w" };
+  const ctx = { userId: "u", role: "stage_manager", weddingId: "w" };
 
   it("never revokes a baseline grant", async () => {
     expect(await applyOverrides(ctx, "queue.manage", true, { roles: [] })).toBe(true);
@@ -72,34 +72,34 @@ describe("applyOverrides", () => {
   it("allowlisted role + flag ON grants queue.skip; flag OFF does not", async () => {
     const on = createFlagClient({ serverKey: "k", fetchImpl: okFetch({ flags: flagsBody({ queue_skip_override: true }) }) });
     const off = createFlagClient({ serverKey: "k", fetchImpl: okFetch({ flags: flagsBody({ queue_skip_override: false }) }) });
-    expect(await applyOverrides(ctx, "queue.skip", false, { client: on, roles: ["stage"] })).toBe(true);
-    expect(await applyOverrides(ctx, "queue.skip", false, { client: off, roles: ["stage"] })).toBe(false);
+    expect(await applyOverrides(ctx, "queue.skip", false, { client: on, roles: ["stage_manager"] })).toBe(true);
+    expect(await applyOverrides(ctx, "queue.skip", false, { client: off, roles: ["stage_manager"] })).toBe(false);
   });
 
   it("non-allowlisted role never calls Flagsmith", async () => {
     const f = vi.fn() as unknown as typeof fetch;
     const c = createFlagClient({ serverKey: "k", fetchImpl: f });
-    expect(await applyOverrides({ ...ctx, role: "kitchen" }, "queue.skip", false, { client: c, roles: ["stage"] })).toBe(false);
+    expect(await applyOverrides({ ...ctx, role: "kitchen" }, "queue.skip", false, { client: c, roles: ["stage_manager"] })).toBe(false);
     expect(f).not.toHaveBeenCalled();
   });
 
   it("permissions without an override flag are untouched", async () => {
     const f = vi.fn() as unknown as typeof fetch;
     const c = createFlagClient({ serverKey: "k", fetchImpl: f });
-    expect(await applyOverrides(ctx, "ledger.read", false, { client: c, roles: ["stage"] })).toBe(false);
+    expect(await applyOverrides(ctx, "ledger.read", false, { client: c, roles: ["stage_manager"] })).toBe(false);
     expect(f).not.toHaveBeenCalled();
   });
 
   it("outage → baseline decision", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
     const c = createFlagClient({ serverKey: "k", fetchImpl: hangingFetch, timeoutMs: 30 });
-    expect(await applyOverrides(ctx, "queue.skip", false, { client: c, roles: ["stage"] })).toBe(false);
+    expect(await applyOverrides(ctx, "queue.skip", false, { client: c, roles: ["stage_manager"] })).toBe(false);
   });
 
-  it("allowlist: stage_manager alias, max two roles", () => {
+  it("allowlist: Stage 1 alias stage → stage_manager, max two roles", () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
-    expect(allowlistedRoles("stage_manager")).toEqual(["stage"]);
-    expect(allowlistedRoles("stage, host, kitchen")).toEqual(["stage", "host"]);
+    expect(allowlistedRoles("stage")).toEqual(["stage_manager"]);
+    expect(allowlistedRoles("stage_manager, host, kitchen")).toEqual(["stage_manager", "host"]);
   });
 });
 
