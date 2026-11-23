@@ -30,10 +30,9 @@ spec:
             {{- range $k, $v := .Values.env }}
             - { name: {{ $k }}, value: {{ $v | quote }} }
             {{- end }}
-          {{- if .Values.externalSecrets.enabled }}
+          # Written by External Secrets (Secret Manager) or, in SECRETS_MODE=k8s, by deploy/gcp-deploy.sh.
           envFrom:
             - secretRef: { name: pehle-aap-secrets }
-          {{- end }}
           readinessProbe:
             httpGet: { path: /api/health, port: http }
             periodSeconds: 5

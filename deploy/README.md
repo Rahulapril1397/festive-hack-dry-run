@@ -1,5 +1,11 @@
 # Deploying Pehle Aap (GKE Autopilot)
 
+**Quick path (production only, one command):** `bash deploy/gcp-deploy.sh` — reads `.env.local`,
+creates or reuses everything below (APIs, registry, Autopilot cluster, static IP, Secret Manager +
+External Secrets, migrations via `npm run migrate`, Cloud Build image, helm release) and is safe to
+re-run. `--help` lists options (`--domain=`, `--secrets=k8s`, `--skip-build`). The sections below are
+the manual / CI (staging + prod) path.
+
 One image, two namespaces: `staging` (1 replica) and `prod` (2 replicas). Merges to `main`
 build the image and `helm upgrade` into `staging`; `deploy-prod` (manual) promotes an image
 already running on staging into `prod`.

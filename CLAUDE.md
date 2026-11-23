@@ -14,6 +14,8 @@ Next.js 15 (App Router) · TypeScript strict · Tailwind v4 · Zod · Supabase P
 | `supabase db push` | apply migrations to staging / prod (run before `deploy-prod`) |
 | no Supabase locally? | any Postgres ≥15 works for SQL tests: apply `supabase/migrations/*.sql` in order, set `DATABASE_URL` (CI does this) |
 | `npx tsx scripts/nudgebee-test.ts [--bad-signature]` | post a signed test recommendation (needs `APP_URL`, `NUDGEBEE_WEBHOOK_SECRET`) |
+| `npm run migrate` | apply pending migrations (tracked in `pehle_meta.migration`; back-fills hand-migrated DBs) |
+| `bash deploy/gcp-deploy.sh` | one-command production deploy to GKE (see `deploy/README.md`) |
 | deploy / rollback | `deploy/README.md` |
 
 ## Rules

@@ -2,7 +2,8 @@
  * Seed the demo wedding.  Usage:
  *   npm run seed                 # needs DATABASE_URL, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SEED_USER_PASSWORD, APP_URL
  *   npx tsx scripts/seed.ts --print-sql   # just print the data SQL (no auth users)
- * Refuses to run when APP_ENV=production.
+ * Refuses to run when APP_ENV=production unless --allow-production is passed (demo wedding on a
+ * prod-only setup). It only ever replaces the demo wedding, never other data.
  */
 import postgres from "postgres";
 import { createClient } from "@supabase/supabase-js";
@@ -43,7 +44,9 @@ async function main() {
     console.log(demoSql());
     return;
   }
-  if (process.env.APP_ENV === "production") throw new Error("Refusing to seed production");
+  if (process.env.APP_ENV === "production" && !process.argv.includes("--allow-production")) {
+    throw new Error("Refusing to seed production (pass --allow-production to seed the demo wedding anyway)");
+  }
 
   const users = await ensureAuthUsers();
   const sql = postgres(must("DATABASE_URL"), { max: 1 });

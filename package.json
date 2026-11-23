@@ -18,6 +18,7 @@
     "test:e2e": "playwright test",
     "test:concurrency": "tsx scripts/concurrency.ts",
     "seed": "tsx scripts/seed.ts",
+    "migrate": "tsx scripts/migrate.ts",
     "db:reset": "supabase db reset && npm run seed"
   },
   "dependencies": {

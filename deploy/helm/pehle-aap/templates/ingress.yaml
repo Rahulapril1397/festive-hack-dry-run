@@ -1,5 +1,6 @@
 {{- if .Values.ingress.enabled }}
-{{- if .Values.ingress.managedCertificate }}
+{{- $tls := and .Values.ingress.host .Values.ingress.managedCertificate }}
+{{- if $tls }}
 apiVersion: networking.gke.io/v1
 kind: ManagedCertificate
 metadata:
@@ -8,6 +9,7 @@ spec:
   domains: [{{ .Values.ingress.host | quote }}]
 ---
 {{- end }}
+# No host → plain HTTP on the static IP (no certificate possible without a domain).
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -18,16 +20,20 @@ metadata:
     {{- with .Values.ingress.staticIpName }}
     kubernetes.io/ingress.global-static-ip-name: {{ . }}
     {{- end }}
-    {{- if .Values.ingress.managedCertificate }}
+    {{- if $tls }}
     networking.gke.io/managed-certificates: {{ include "pehle.name" . }}-cert
     {{- end }}
 spec:
+  defaultBackend:
+    service: { name: {{ include "pehle.name" . }}, port: { name: http } }
+  {{- with .Values.ingress.host }}
   rules:
-    - host: {{ .Values.ingress.host | quote }}
+    - host: {{ . | quote }}
       http:
         paths:
           - path: /
             pathType: Prefix
             backend:
-              service: { name: {{ include "pehle.name" . }}, port: { name: http } }
+              service: { name: {{ include "pehle.name" $ }}, port: { name: http } }
+  {{- end }}
 {{- end }}
