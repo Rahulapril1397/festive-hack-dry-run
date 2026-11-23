@@ -18,6 +18,7 @@ env:
   FLAGSMITH_ADMIN_API_URL: https://api.flagsmith.com/api/v1
   FLAG_OVERRIDE_ROLES: stage
   PHOTO_MATCH_WINDOW_MS: "3000"
+  ASSISTANT_MODEL: claude-opus-5-5
 
 serviceAccount:
   # Kubernetes SA bound to a Google SA via Workload Identity (roles/secretmanager.secretAccessor).
@@ -29,6 +30,8 @@ externalSecrets:
   refreshInterval: 1h
   projectId: ""
   prefix: ""              # "staging-" / "prod-": separate Secret Manager secrets per environment
+  # Read only by the migration hook Job (never mounted into app pods).
+  migrateKey: pehle-database-url
   # k8s env name -> Secret Manager secret name
   keys:
     SUPABASE_URL: pehle-supabase-url
@@ -43,6 +46,7 @@ externalSecrets:
     FLAGSMITH_ENVIRONMENT_KEY: pehle-flagsmith-environment-key
     METRICS_TOKEN: pehle-metrics-token
     NUDGEBEE_WEBHOOK_SECRET: pehle-nudgebee-webhook-secret
+    ANTHROPIC_API_KEY: pehle-anthropic-api-key
 
 gke:
   clusterName: pehle-aap
@@ -61,6 +65,14 @@ ingress:
 resources:
   requests: { cpu: 250m, memory: 512Mi }
   limits: { cpu: 500m, memory: 512Mi }
+
+# Migrations run as a pre-upgrade hook Job before new pods take traffic (first install: the
+# deploy script migrates before helm, because the secret store does not exist yet).
+migrations:
+  enabled: true
+
+podDisruptionBudget:
+  enabled: true
 
 # SSE streams (TV) are long-lived: give the GCLB backend a long timeout.
 backendConfig:

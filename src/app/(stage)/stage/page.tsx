@@ -1,15 +1,13 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { getSession } from "@/lib/authz";
-import { roleHas } from "@/lib/authz/staticMap";
+import { AutoRefresh } from "@/components/shell/AutoRefresh";
+import { requirePage } from "@/components/shell/guard";
 import { db } from "@/lib/db/service";
 
 export const dynamic = "force-dynamic";
 
 export default async function StageHome() {
-  const s = await getSession();
-  if (!s) redirect("/login");
-  const showTvLinks = roleHas(s.role, "queue.manage");
+  const s = await requirePage("queue.read", "/stage");
+  const showTvLinks = s.permissions.has("queue.manage");
   const { data: events } = await db()
     .from("event")
     .select("id, name, starts_at, tv_key")
@@ -18,9 +16,10 @@ export default async function StageHome() {
 
   return (
     <main className="mx-auto max-w-3xl p-6">
+      <AutoRefresh ms={5000} />
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold">Events</h1>
-        {roleHas(s.role, "queue.checkin") && (
+        {s.permissions.has("queue.checkin") && (
           <Link className="btn-secondary" href="/stage/checkin">
             Check-in desk
           </Link>
@@ -35,7 +34,7 @@ export default async function StageHome() {
                 {e.starts_at && <p className="text-sm text-stone-500">{new Date(e.starts_at).toLocaleString("en-IN")}</p>}
               </div>
               <div className="flex flex-wrap gap-2">
-                {roleHas(s.role, "queue.read") && (
+                {s.permissions.has("queue.read") && (
                   <Link className="btn-primary" href={`/stage/${e.id}`} data-testid={`console-${e.name}`}>
                     Stage console
                   </Link>

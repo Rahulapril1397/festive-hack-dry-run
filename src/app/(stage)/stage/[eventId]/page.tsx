@@ -1,6 +1,5 @@
 import { notFound, redirect } from "next/navigation";
 import { getSession, hasPermission, requirePermission } from "@/lib/authz";
-import { roleHas } from "@/lib/authz/staticMap";
 import { getEvent } from "@/lib/db/service";
 import { AppError } from "@/lib/errors";
 import { Console } from "./Console";
@@ -24,10 +23,10 @@ export default async function StageConsolePage({ params }: { params: Promise<{ e
       eventId={event.id}
       eventName={event.name}
       can={{
-        call: roleHas(s.role, "queue.call_next"),
-        manage: roleHas(s.role, "queue.manage"),
+        call: await hasPermission(s, "queue.call_next", event.wedding_id),
+        manage: await hasPermission(s, "queue.manage", event.wedding_id),
         skip: await hasPermission(s, "queue.skip", event.wedding_id),
-        clock: roleHas(s.role, "clock.read"),
+        clock: await hasPermission(s, "clock.read", event.wedding_id),
       }}
     />
   );

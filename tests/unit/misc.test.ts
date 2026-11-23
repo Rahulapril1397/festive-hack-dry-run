@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { normalizePhone, isCheckinCode } from "@/domain/checkin/phone";
 import { clockPayload, verifyClockQr } from "@/lib/clock";
-import { roleHas, STATIC_ROLE_PERMISSIONS, PERMISSIONS } from "@/lib/authz/staticMap";
+import { roleHas, DEFAULT_ROLE_PERMISSIONS as STATIC_ROLE_PERMISSIONS, PERMISSIONS } from "@/lib/authz/staticMap";
 import { QueueStatusSchema, TvFeedSchema } from "@/contracts/queue";
 
 describe("phone normalisation", () => {
@@ -35,14 +35,15 @@ describe("clock QR (C4)", () => {
 
 describe("static permission map", () => {
   it("stage can call and manage; kitchen cannot", () => {
-    expect(roleHas("stage", "queue.call_next")).toBe(true);
-    expect(roleHas("stage", "queue.manage")).toBe(true);
+    expect(roleHas("stage_manager", "queue.call_next")).toBe(true);
+    expect(roleHas("stage_manager", "queue.manage")).toBe(true);
     expect(roleHas("kitchen", "queue.call_next")).toBe(false);
     expect(roleHas("photographer", "queue.call_next")).toBe(false);
     expect(roleHas("nobody", "queue.read")).toBe(false);
   });
   it("admin has every key; required doc keys exist", () => {
-    expect(STATIC_ROLE_PERMISSIONS.admin.length).toBe(PERMISSIONS.length);
+    expect(STATIC_ROLE_PERMISSIONS.super_admin.length).toBe(PERMISSIONS.length);
+    expect(STATIC_ROLE_PERMISSIONS.admin).not.toContain("roles.manage");
     for (const k of ["queue.checkin", "photos.review", "kitchen.read", "ledger.write"]) {
       expect((PERMISSIONS as readonly string[]).includes(k)).toBe(true);
     }
@@ -74,10 +75,10 @@ describe("static permission map — lanes E2/E3", () => {
   it("kitchen sees no ledger; finance can read/export; only admin has ops.approve", () => {
     expect(roleHas("kitchen", "ledger.read")).toBe(false);
     expect(roleHas("finance", "ledger.read") && roleHas("finance", "ledger.export")).toBe(true);
-    expect(ROLES_WITH("ops.approve")).toEqual(["admin"]);
+    expect(ROLES_WITH("ops.approve").sort()).toEqual(["admin", "super_admin"]);
   });
   it("stage gets queue.skip only via the Flagsmith override, not the baseline", () => {
-    expect(roleHas("stage", "queue.skip")).toBe(false);
+    expect(roleHas("stage_manager", "queue.skip")).toBe(false);
     expect(roleHas("admin", "queue.skip")).toBe(true);
   });
 });

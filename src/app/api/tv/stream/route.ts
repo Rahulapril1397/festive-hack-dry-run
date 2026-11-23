@@ -1,3 +1,4 @@
+import { publicRoute } from "@/lib/http";
 import { eventForTvKey, getTvFeed } from "@/domain/queue/service";
 
 export const dynamic = "force-dynamic";
@@ -13,6 +14,7 @@ const MAX_LIFETIME_MS = 30 * 60_000; // client reconnects; keeps Cloud Run reque
  * Realtime; a handful of TVs per wedding makes the cost negligible.
  */
 export async function GET(req: Request) {
+  publicRoute("TV key checked against event.tv_key; tokens only");
   const url = new URL(req.url);
   const ev = await eventForTvKey(url.searchParams.get("eventId") ?? "", url.searchParams.get("key"));
   if (!ev) return new Response("forbidden", { status: 403 });

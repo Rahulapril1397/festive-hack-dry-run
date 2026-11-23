@@ -13,10 +13,10 @@ export const OVERRIDE_GRANTS: Partial<Record<string, FlagName>> = {
   "queue.skip": "queue_skip_override",
 };
 
-const ROLE_ALIASES: Record<string, string> = { stage_manager: "stage" };
+const ROLE_ALIASES: Record<string, string> = { stage: "stage_manager" }; // Stage 1 name
 export const MAX_OVERRIDE_ROLES = 2;
 
-export function allowlistedRoles(raw = process.env.FLAG_OVERRIDE_ROLES ?? "stage"): string[] {
+export function allowlistedRoles(raw = process.env.FLAG_OVERRIDE_ROLES ?? "stage_manager"): string[] {
   const roles = raw
     .split(",")
     .map((r) => r.trim())
@@ -29,12 +29,13 @@ export function allowlistedRoles(raw = process.env.FLAG_OVERRIDE_ROLES ?? "stage
 }
 
 export type OverrideCtx = { userId: string; role: string; weddingId: string };
+export type FlagEval = { weddingId: string; role: string; flag: string; permission: string; result: boolean; fallback: boolean };
 
 export async function applyOverrides(
   ctx: OverrideCtx,
   key: string,
   baseDecision: boolean,
-  deps: { client?: FlagClient; roles?: string[] } = {},
+  deps: { client?: FlagClient; roles?: string[]; onEval?: (e: FlagEval) => void } = {},
 ): Promise<boolean> {
   if (baseDecision) return true;
   const flag = OVERRIDE_GRANTS[key];
@@ -48,11 +49,14 @@ export async function applyOverrides(
     const f = flags[flag];
     if (!f || typeof f.enabled !== "boolean") {
       logFallback(flag, "missing flag");
+      deps.onEval?.({ weddingId: ctx.weddingId, role: ctx.role, flag, permission: key, result: baseDecision, fallback: true });
       return baseDecision;
     }
+    deps.onEval?.({ weddingId: ctx.weddingId, role: ctx.role, flag, permission: key, result: f.enabled, fallback: false });
     return f.enabled;
   } catch (e) {
     logFallback(flag, e);
+    deps.onEval?.({ weddingId: ctx.weddingId, role: ctx.role, flag, permission: key, result: baseDecision, fallback: true });
     return baseDecision;
   }
 }

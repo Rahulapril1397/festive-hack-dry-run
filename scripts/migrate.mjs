@@ -3,6 +3,7 @@
  * pehle_meta.migration. Safe to re-run. A database migrated earlier by hand (psql / supabase db
  * push) is detected by marker objects and back-filled, so nothing runs twice.
  *   DATABASE_URL=… npm run migrate            (add --dry-run to only list pending files)
+ * Plain JavaScript so it also runs inside the production image (Helm pre-upgrade hook Job).
  */
 import postgres from "postgres";
 import { readFileSync, readdirSync } from "node:fs";
@@ -11,7 +12,8 @@ import { join } from "node:path";
 const DIR = join(import.meta.dirname, "..", "supabase", "migrations");
 
 /** One object each migration creates; used only to back-fill pre-existing databases. */
-const MARKERS: Record<string, string> = {
+/** @type {Record<string, string>} */
+const MARKERS = {
   "0001_core.sql": "select to_regclass('public.stage_log') is not null as ok",
   "0002_queue.sql": "select to_regproc('public.call_next') is not null as ok",
   "0003_platform.sql": "select to_regproc('public.lock_down_public') is not null as ok",
@@ -32,16 +34,16 @@ async function main() {
     await sql`revoke all on schema pehle_meta from public`;
 
     const files = readdirSync(DIR).filter((f) => /^\d{4}_.+\.sql$/.test(f)).sort();
-    let applied = new Set((await sql<{ name: string }[]>`select name from pehle_meta.migration`).map((r) => r.name));
+    let applied = new Set((await sql`select name from pehle_meta.migration`).map((r) => r.name));
 
     if (applied.size === 0) {
-      const found: string[] = [];
+      const found = [];
+      // Each marker is checked on its own: a newer migration can sort between older ones.
       for (const f of files) {
         const q = MARKERS[f];
-        if (!q) break;
-        const [r] = await sql.unsafe<{ ok: boolean }[]>(q);
-        if (!r?.ok) break;
-        found.push(f);
+        if (!q) continue;
+        const [r] = await sql.unsafe(q);
+        if (r?.ok) found.push(f);
       }
       if (found.length) {
         console.log(`Existing schema detected; recording ${found.length} migration(s) as already applied.`);
@@ -69,7 +71,7 @@ async function main() {
   }
 }
 
-main().catch((e) => {
+main().catch((/** @type {Error} */ e) => {
   console.error(`\nMigration failed: ${e.message}`);
   process.exit(1);
 });

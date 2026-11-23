@@ -208,7 +208,7 @@ confirm "Continue?" || { echo "  Cancelled."; exit 0; }
 # ══════════════════════════════════════════════════════════════════════════════════════════════
 step "Enable Google Cloud APIs"
 gcloud services enable container.googleapis.com artifactregistry.googleapis.com cloudbuild.googleapis.com \
-  secretmanager.googleapis.com compute.googleapis.com iamcredentials.googleapis.com --project "$GCP_PROJECT"
+  secretmanager.googleapis.com compute.googleapis.com iamcredentials.googleapis.com monitoring.googleapis.com logging.googleapis.com --project "$GCP_PROJECT"
 ok "APIs enabled"
 
 step "Artifact Registry + Cloud Build permissions"
@@ -265,7 +265,9 @@ SEED_USER_PASSWORD:pehle-seed-user-password:optional
 SARVAM_API_KEY:pehle-sarvam-api-key:optional
 FLAGSMITH_SERVER_KEY:pehle-flagsmith-server-key:optional
 FLAGSMITH_ADMIN_KEY:pehle-flagsmith-admin-key:optional
-FLAGSMITH_ENVIRONMENT_KEY:pehle-flagsmith-environment-key:optional"
+FLAGSMITH_ENVIRONMENT_KEY:pehle-flagsmith-environment-key:optional
+ANTHROPIC_API_KEY:pehle-anthropic-api-key:optional
+DATABASE_URL:pehle-database-url:migrate"
 
 existing_value() { # $1 env name, $2 secret name
   if [ "$SECRETS_MODE" = "secretmanager" ]; then
@@ -289,16 +291,17 @@ for spec in $SECRET_SPECS; do
   src=".env.local"
   if is_placeholder "$val"; then
     case "$kind" in
-      required) die "$envk is required" ;;
+      required|migrate) die "$envk is required" ;;
       generate) val="$(existing_value "$envk" "$sname")"; src="kept"; [ -n "$val" ] || { val="$(openssl rand -hex 32)"; src="generated"; } ;;
       optional) val="" ;;
     esac
   fi
   if [ -z "$val" ]; then
-    info "$envk: not set (feature runs in mock/off mode)"
+    info "$envk: not set (that integration stays off)"
     HELM_SECRET_ARGS+=(--set "externalSecrets.keys.$envk=null")
     IFS=$'\n'; continue
   fi
+  [ "$kind" = "migrate" ] && HELM_SECRET_ARGS+=(--set "externalSecrets.keys.$envk=null")
   if [ "$SECRETS_MODE" = "secretmanager" ]; then
     full="$SECRET_PREFIX$sname"
     if ! gcloud secrets describe "$full" >/dev/null 2>&1 </dev/null; then
@@ -347,6 +350,11 @@ WEDDINGS="$(node --input-type=module -e '
 import postgres from "postgres";
 const s = postgres(process.env.DATABASE_URL, { max: 1, prepare: false, onnotice: () => {} });
 const [r] = await s`select count(*)::int n from wedding`; console.log(r.n); await s.end();')"
+SUPERS="$(node --input-type=module -e '
+import postgres from "postgres";
+const s = postgres(process.env.DATABASE_URL, { max: 1, prepare: false, onnotice: () => {} });
+const [r] = await s`select authz.active_super_admins() n`; console.log(r.n); await s.end();' 2>/dev/null || echo "?")"
+[ "$SUPERS" = "0" ] && warn "no super admin yet — nobody can create weddings or edit roles. Run: DATABASE_URL=… npm run grant:super-admin -- you@example.com"
 if [ "$WEDDINGS" = "0" ]; then
   if [ -z "${SEED_USER_PASSWORD:-}" ]; then
     warn "no wedding yet and SEED_USER_PASSWORD is empty — skipping demo seed"
@@ -393,7 +401,9 @@ helm upgrade --install "$RELEASE" "$CHART" -n "$NAMESPACE" -f "$CHART/values-pro
   --set serviceAccount.gcpServiceAccount="$([ "$ESO" = true ] && echo "$GSA")" \
   --set externalSecrets.enabled="$ESO" --set externalSecrets.projectId="$GCP_PROJECT" --set externalSecrets.prefix="$SECRET_PREFIX" \
   --set gke.clusterName="$CLUSTER" --set gke.location="$GCP_REGION" \
-  ${HELM_SECRET_ARGS[@]+"${HELM_SECRET_ARGS[@]}"} >/dev/null
+  --set externalSecrets.migrateKey=pehle-database-url \
+  --timeout 15m \
+  ${HELM_SECRET_ARGS[@]+"${HELM_SECRET_ARGS[@]}"} >/dev/null   # pre-upgrade hook Job runs migrations first
 ok "release $RELEASE upgraded (revision $(helm history "$RELEASE" -n "$NAMESPACE" --max 1 -o json | sed -nE 's/.*"revision":([0-9]+).*/\1/p'))"
 
 if [ "$ESO" = true ]; then
@@ -445,6 +455,16 @@ case "$HEALTH" in
   *"\"sha\":\"$TAG\""*) ok "http://$IP/api/health → $HEALTH" ;;
   *) warn "health check not passing yet (load balancer may still be provisioning). Check later: curl http://$IP/api/health" ;;
 esac
+UPTIME_HOST="${DOMAIN:-$IP}"; UPTIME_PROTO="$([ -n "$DOMAIN" ] && [ "${CERT_READY:-}" = 1 ] && echo https || echo http)"
+if gcloud monitoring uptime list-configs --project "$GCP_PROJECT" --filter='displayName="pehle-aap-health"' --format='value(name)' 2>/dev/null </dev/null | grep -q .; then
+  ok "Cloud Monitoring uptime check exists (pehle-aap-health)"
+elif gcloud monitoring uptime create pehle-aap-health --project "$GCP_PROJECT" --resource-type=uptime-url \
+      --resource-labels="host=$UPTIME_HOST,project_id=$GCP_PROJECT" --path=/api/health --protocol="$UPTIME_PROTO" \
+      --period=1 --timeout=10 --quiet >/dev/null 2>&1 </dev/null; then
+  ok "Cloud Monitoring uptime check created: $UPTIME_PROTO://$UPTIME_HOST/api/health every minute"
+else
+  warn "could not create the uptime check; create it in Cloud Monitoring → Uptime checks for /api/health"
+fi
 CERT=""
 if [ -n "$DOMAIN" ]; then
   CERT="$(kubectl get managedcertificate pehle-aap-cert -n "$NAMESPACE" -o jsonpath='{.status.certificateStatus}' 2>/dev/null || true)"

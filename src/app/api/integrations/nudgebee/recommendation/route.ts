@@ -1,10 +1,11 @@
-import { handle, json } from "@/lib/http";
+import { handle, json, publicRoute } from "@/lib/http";
 import { AppError } from "@/lib/errors";
 import { SIGNATURE_HEADER, TIMESTAMP_HEADER, verifySignature } from "@/lib/nudgebee/signature";
 import { RecommendationBody, storeRecommendation } from "@/lib/nudgebee/service";
 
 /** NudgeBee → us. Signed with NUDGEBEE_WEBHOOK_SECRET. Stores a pending recommendation; never acts on it. */
 export const POST = handle(async (req: Request) => {
+  publicRoute("HMAC signature + 5-minute timestamp window; stores pending only");
   const raw = await req.text();
   const ok = verifySignature(process.env.NUDGEBEE_WEBHOOK_SECRET ?? "", req.headers.get(SIGNATURE_HEADER), req.headers.get(TIMESTAMP_HEADER), raw);
   if (!ok) throw new AppError("INVALID_SIGNATURE", "Bad or missing signature");

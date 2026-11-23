@@ -1,3 +1,4 @@
+import { publicRoute } from "@/lib/http";
 import { z } from "zod";
 import { db } from "@/lib/db/service";
 import { eventForTvKey } from "@/domain/queue/service";
@@ -5,6 +6,7 @@ import { isEnabled } from "@/lib/flags";
 import { recordTts } from "@/lib/metrics";
 import { sarvam } from "@/lib/sarvam/client";
 import { audioCache } from "@/lib/sarvam/audioCache";
+import { ttsStore } from "@/lib/sarvam/ttsStore";
 import { announcementAudio } from "@/lib/sarvam/announce";
 import { isAppLanguage } from "@/lib/sarvam/languages";
 
@@ -19,6 +21,7 @@ type Ctx = { params: Promise<{ id: string }> };
  * Language: the called family's language, else the event's. Text: announcementText(token, lang).
  */
 export async function GET(req: Request, { params }: Ctx) {
+  publicRoute("TV key checked against event.tv_key; audio of a token number only");
   const { id } = await params;
   if (!z.string().uuid().safeParse(id).success) return new Response(null, { status: 404 });
 
@@ -42,10 +45,16 @@ export async function GET(req: Request, { params }: Ctx) {
     lang = data?.language ?? "en";
   }
 
-  return announcementAudio(log.token_number, isAppLanguage(lang) ? lang : "en", {
+  const language = isAppLanguage(lang) ? lang : "en";
+  return announcementAudio(log.token_number, language, {
     voiceCallsOn: () => isEnabled("voice_calls"),
     client: sarvam(),
     cache: audioCache,
-    record: recordTts,
+    store: ttsStore,
+    record: (result, seconds, source) => {
+      recordTts(result, seconds);
+      // counts and timings only (for /ops/integrations)
+      void db().from("tts_event").insert({ result, source: source ?? null, language, latency_ms: seconds === undefined ? null : Math.round(seconds * 1000) }).then(() => {});
+    },
   });
 }

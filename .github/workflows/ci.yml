@@ -23,7 +23,9 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
+      - name: Route audit (every handler checks a permission or is an explicit publicRoute)
+        run: npm run audit:routes
       - name: Apply migrations to the throwaway database
-        run: for f in supabase/migrations/*.sql; do psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f "$f"; done
+        run: npm run migrate
       - run: npm test            # unit + integration (DATABASE_URL set)
       - run: npm run test:concurrency

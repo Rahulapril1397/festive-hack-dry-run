@@ -18,10 +18,13 @@
     "test:e2e": "playwright test",
     "test:concurrency": "tsx scripts/concurrency.ts",
     "seed": "tsx scripts/seed.ts",
-    "migrate": "tsx scripts/migrate.ts",
+    "migrate": "node scripts/migrate.mjs",
+    "audit:routes": "tsx scripts/route-audit.ts",
+    "grant:super-admin": "node scripts/grant-super-admin.mjs",
     "db:reset": "supabase db reset && npm run seed"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.12.0",
     "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.49.4",
     "exifr": "^7.1.3",

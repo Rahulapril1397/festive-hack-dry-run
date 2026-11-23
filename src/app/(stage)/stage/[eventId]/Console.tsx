@@ -53,10 +53,16 @@ export function Console({ eventId, eventName, can }: { eventId: string; eventNam
     else if (res.status === 401) window.location.href = `/login?next=/stage/${eventId}`;
   }, [eventId]);
 
+  // 2-second poll while visible; paused when the tab is hidden, immediate refresh on return.
   useEffect(() => {
     void refresh();
-    const t = setInterval(refresh, 2000);
-    return () => clearInterval(t);
+    const t = setInterval(() => document.visibilityState === "visible" && void refresh(), 2000);
+    const onVis = () => document.visibilityState === "visible" && void refresh();
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      clearInterval(t);
+      document.removeEventListener("visibilitychange", onVis);
+    };
   }, [refresh]);
 
   // One persistent action: a double-tap returns the in-flight request; an inconclusive failure

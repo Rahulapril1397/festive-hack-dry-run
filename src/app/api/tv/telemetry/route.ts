@@ -1,3 +1,4 @@
+import { publicRoute } from "@/lib/http";
 import { z } from "zod";
 import { eventForTvKey } from "@/domain/queue/service";
 import { recordChime } from "@/lib/metrics";
@@ -14,6 +15,7 @@ const Body = z.object({
 
 /** E2. POST { event: "chime", eventId, key, announcementId?, reason? } → 204; increments pehle_tts_fallback_chime_total. */
 export async function POST(req: Request) {
+  publicRoute("TV key checked against event.tv_key; increments an enum counter");
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return new Response(null, { status: 400 });
   if (!(await eventForTvKey(parsed.data.eventId, parsed.data.key))) return new Response(null, { status: 403 });

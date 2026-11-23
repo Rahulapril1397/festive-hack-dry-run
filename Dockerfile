@@ -24,6 +24,10 @@ RUN addgroup -S -g 1001 app && adduser -S -u 1001 -G app app
 COPY --from=build --chown=1001:1001 /app/.next/standalone ./
 COPY --from=build --chown=1001:1001 /app/.next/static ./.next/static
 COPY --from=build --chown=1001:1001 /app/public ./public
+# Migration runner for the Helm pre-upgrade hook Job (node scripts/migrate.mjs).
+COPY --from=build --chown=1001:1001 /app/scripts/migrate.mjs ./scripts/migrate.mjs
+COPY --from=build --chown=1001:1001 /app/supabase/migrations ./supabase/migrations
+COPY --from=build --chown=1001:1001 /app/node_modules/postgres ./node_modules/postgres
 USER 1001:1001
 EXPOSE 8080
 CMD ["node", "server.js"]

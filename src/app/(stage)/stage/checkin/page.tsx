@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/authz";
-import { roleHas } from "@/lib/authz/staticMap";
 import { listEvents } from "@/lib/db/service";
 import { DeskForm } from "./DeskForm";
 
@@ -9,7 +8,7 @@ export const dynamic = "force-dynamic";
 export default async function DeskPage() {
   const s = await getSession();
   if (!s) redirect("/login?next=/stage/checkin");
-  if (!roleHas(s.role, "queue.checkin")) redirect("/stage");
+  if (!s.permissions.has("queue.checkin")) redirect("/denied?need=queue.checkin");
   const events = await listEvents(s.weddingId);
   return (
     <main className="mx-auto max-w-3xl p-6">

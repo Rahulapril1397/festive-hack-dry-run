@@ -9,8 +9,11 @@ export const DEMO_EVENTS = [
   { id: "00000000-0000-4000-8000-0000000000a3", name: "Reception", startsAt: "2026-12-13T13:30:00Z", language: "en", tvKey: "demo-tv-reception3" },
 ] as const;
 
-export const DEMO_ROLES = ["host", "stage", "kitchen", "photographer", "admin", "finance"] as const;
-export const demoEmail = (role: string) => `${role}@demo.pehleaap.test`;
+/** Role keys of the seeded staff users (Stage 2 names). super_admin is wedding-less. */
+export const DEMO_ROLES = ["host", "stage_manager", "kitchen", "photographer", "admin", "finance", "coordinator", "super_admin"] as const;
+/** Email local part per role; stage_manager keeps the Stage 1 address so existing logins still work. */
+const EMAIL_LOCAL: Record<string, string> = { stage_manager: "stage", super_admin: "superadmin" };
+export const demoEmail = (role: string) => `${EMAIL_LOCAL[role] ?? role}@demo.pehleaap.test`;
 
 const SURNAMES = ["Sharma", "Verma", "Iyer", "Reddy", "Kapoor", "Mehta", "Nair", "Gupta", "Joshi", "Bose", "Malhotra", "Chopra", "Patel", "Singh", "Rao", "Das", "Kulkarni", "Banerjee", "Menon", "Agarwal"];
 const PREFIXES = ["", "Dr. ", ""];
@@ -87,7 +90,10 @@ export function demoSql(users: { id: string; email: string; role: string }[] = [
     `insert into ledger_entry(wedding_id, family_id, event_id, payment_method, gift_type, notes) values (${q(DEMO_WEDDING_ID)}, ${q(fams[14]!.id)}, ${q(DEMO_EVENTS[2].id)}, 'boxed_gift', 'dinner set', 'Boxed gift');`,
     ...users.flatMap((u) => [
       `insert into app_user(id, email, display_name) values (${q(u.id)}, ${q(u.email)}, ${q(`Demo ${u.role}`)}) on conflict (id) do update set email = excluded.email;`,
-      `insert into user_role(user_id, role_id, wedding_id) select ${q(u.id)}, id, ${q(DEMO_WEDDING_ID)} from role where key = ${q(u.role)} on conflict do nothing;`,
+      `update app_user set status = 'active' where id = ${q(u.id)};`,
+      u.role === "super_admin"
+        ? `insert into user_role(user_id, role_id, wedding_id) select ${q(u.id)}, id, null from role where key = 'super_admin' on conflict do nothing;`
+        : `insert into user_role(user_id, role_id, wedding_id) select ${q(u.id)}, id, ${q(DEMO_WEDDING_ID)} from role where key = ${q(u.role)} on conflict do nothing;`,
     ]),
     "commit;",
   ];
