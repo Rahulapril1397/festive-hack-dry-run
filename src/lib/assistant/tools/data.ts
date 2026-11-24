@@ -91,7 +91,7 @@ export async function myRsvp(c: Caller) {
   const { data } = await db().from("rsvp").select("event_id, status, headcount").eq("family_id", c.familyId);
   return c.events.map((e) => {
     const r = (data ?? []).find((x) => x.event_id === e.id);
-    return { function: e.name, answer: r?.status === "yes" ? "attending" : r?.status === "no" ? "not attending" : "not answered yet", guests: r?.headcount ?? 0 };
+    return { function: e.name, when: e.startsAt ? new Date(e.startsAt).toLocaleString("en-IN", IST) : "time to be announced", answer: r?.status === "yes" ? "attending" : r?.status === "no" ? "not attending" : "not answered yet", guests: r?.headcount ?? 0 };
   });
 }
 

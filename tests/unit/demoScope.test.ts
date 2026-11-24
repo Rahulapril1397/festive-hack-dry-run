@@ -17,7 +17,7 @@ describe("PinkyBua demo scope", () => {
     const names = (p: Set<string>) => scopedTools("staff", p).map((t) => t.name).sort();
     expect(names(perms("admin"))).toEqual(["function_details", "guest_lookup", "photo_review_counts"]);
     expect(names(perms("super_admin"))).toEqual(["function_details", "guest_lookup", "photo_review_counts"]);
-    expect(scopedTools("guest", new Set()).map((t) => t.name)).toEqual(["my_rsvp"]);
+    expect(scopedTools("guest", new Set()).map((t) => t.name)).toEqual(["my_rsvp", "my_queue"]);
   });
   it("permissions still apply inside the scope: each tool needs its own permission", () => {
     const names = (p: Set<string>) => scopedTools("staff", p).map((t) => t.name).sort();

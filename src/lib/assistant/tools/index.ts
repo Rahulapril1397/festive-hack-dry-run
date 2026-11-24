@@ -144,7 +144,7 @@ export const TOOLS: ToolDef[] = [
   },
   {
     name: "my_rsvp",
-    description: "This family's own RSVP per function (attending, number of guests).",
+    description: "This family's own functions: name, date and time, and their RSVP (attending, number of guests). Use for any question about when a function is.",
     input: z.object({}).strict(),
     jsonSchema: obj({}),
     access: { guest: true },
