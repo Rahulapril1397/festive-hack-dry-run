@@ -28,11 +28,11 @@ describe("PinkyBua demo scope", () => {
     expect(names(new Set(["photos.review"]))).toEqual(["photo_review_counts"]);
   });
   it("everything else is out of scope, including write tools and ledger amounts", () => {
-    for (const t of ["ledger_summary", "queue_status", "rsvp_summary", "find_family_token", "set_my_language", "vendor_lookup", "my_queue", "my_gifts", "faq"]) {
+    for (const t of ["ledger_summary", "queue_status", "rsvp_summary", "find_family_token", "set_my_language", "vendor_lookup", "my_gifts", "faq"]) {
       expect(inScope("staff", t) || inScope("guest", t), t).toBe(false);
     }
     expect(DEMO_SCOPE.staff).toHaveLength(3);
-    expect(DEMO_SCOPE.guest).toHaveLength(1);
+    expect(DEMO_SCOPE.guest).toHaveLength(2);
   });
   it("active for admin and super admin only", () => {
     expect(staffActive({ isSuperAdmin: false, roles: ["admin"] })).toBe(true);
