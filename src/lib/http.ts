@@ -55,12 +55,19 @@ export function handle<A extends unknown[]>(fn: (...args: A) => Promise<Response
   };
 }
 
+/** JSON bodies larger than this are refused before parsing (caps what a schema ever has to validate). */
+export const MAX_JSON_BODY_BYTES = 1_000_000;
+
 export async function parseBody<S extends ZodTypeAny>(req: Request, schema: S): Promise<z.output<S>> {
+  const declared = Number(req.headers.get("content-length") ?? 0);
+  if (declared > MAX_JSON_BODY_BYTES) throw new AppError("BAD_REQUEST", "Request body too large");
   let raw: unknown;
   try {
-    raw = await req.json();
+    const text = await req.text();
+    if (text.length > MAX_JSON_BODY_BYTES) throw new Error("too large");
+    raw = JSON.parse(text);
   } catch {
-    throw new AppError("BAD_REQUEST", "Body must be JSON");
+    throw new AppError("BAD_REQUEST", "Body must be JSON (and under 1 MB)");
   }
   return schema.parse(raw);
 }

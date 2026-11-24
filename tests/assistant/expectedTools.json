@@ -1,11 +1,11 @@
 {
-  "super_admin": ["queue_status", "rsvp_summary", "find_family_token", "photo_review_counts", "ledger_summary", "explain_screen", "set_my_language", "tasks_overview", "gift_claims_summary", "thank_you_stats", "vendor_lookup"],
-  "admin": ["queue_status", "rsvp_summary", "find_family_token", "photo_review_counts", "ledger_summary", "explain_screen", "set_my_language", "tasks_overview", "gift_claims_summary", "thank_you_stats", "vendor_lookup"],
-  "host": ["queue_status", "rsvp_summary", "find_family_token", "photo_review_counts", "ledger_summary", "explain_screen", "set_my_language", "tasks_overview", "gift_claims_summary", "thank_you_stats", "vendor_lookup"],
-  "coordinator": ["queue_status", "rsvp_summary", "find_family_token", "photo_review_counts", "explain_screen", "set_my_language", "tasks_overview", "gift_claims_summary", "vendor_lookup"],
+  "super_admin": ["queue_status", "rsvp_summary", "find_family_token", "photo_review_counts", "ledger_summary", "explain_screen", "set_my_language", "tasks_overview", "gift_claims_summary", "thank_you_stats", "vendor_lookup", "function_details", "guest_lookup"],
+  "admin": ["queue_status", "rsvp_summary", "find_family_token", "photo_review_counts", "ledger_summary", "explain_screen", "set_my_language", "tasks_overview", "gift_claims_summary", "thank_you_stats", "vendor_lookup", "function_details", "guest_lookup"],
+  "host": ["queue_status", "rsvp_summary", "find_family_token", "photo_review_counts", "ledger_summary", "explain_screen", "set_my_language", "tasks_overview", "gift_claims_summary", "thank_you_stats", "vendor_lookup", "function_details", "guest_lookup"],
+  "coordinator": ["queue_status", "rsvp_summary", "find_family_token", "photo_review_counts", "explain_screen", "set_my_language", "tasks_overview", "gift_claims_summary", "vendor_lookup", "function_details", "guest_lookup"],
   "stage_manager": ["queue_status", "find_family_token", "explain_screen", "set_my_language", "tasks_overview"],
   "kitchen": ["rsvp_summary", "explain_screen", "set_my_language", "tasks_overview"],
   "photographer": ["photo_review_counts", "explain_screen", "set_my_language", "tasks_overview"],
-  "finance": ["rsvp_summary", "ledger_summary", "explain_screen", "set_my_language", "tasks_overview", "vendor_lookup"],
+  "finance": ["rsvp_summary", "ledger_summary", "explain_screen", "set_my_language", "tasks_overview", "vendor_lookup", "guest_lookup"],
   "guest": ["my_rsvp", "my_queue", "faq", "set_my_language", "my_gifts"]
 }

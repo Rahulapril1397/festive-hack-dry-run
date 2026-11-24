@@ -7,6 +7,7 @@ import { countBuckets, type Bucket } from "@/domain/photos/match";
 import type { Caller } from "../caller";
 import { callerRole } from "../caller";
 import { knowledgeFor, sectionsAbout } from "../kb";
+import { likePattern, matchFunction, parseGuestQuery, shapeGuests, type FamilyRow, type QueueRow, type RsvpRow } from "./guests";
 
 type QueueMod = typeof import("@/domain/queue/service");
 type LedgerMod = typeof import("@/domain/ledger/service");
@@ -111,4 +112,68 @@ export async function setMyLanguage(c: Caller, language: "en" | "hi") {
     if (error) throw new Error(error.message);
   }
   return { language };
+}
+
+const IST = { timeZone: "Asia/Kolkata", dateStyle: "medium", timeStyle: "short" } as const;
+
+/** Admin: every function with its date, RSVP counts, plates, check-ins and the live queue. */
+export async function functionDetails(c: Caller, args: { function?: string }) {
+  if (c.kind !== "staff") throw new AppError("FORBIDDEN");
+  const { overview } = await import("@/domain/host/queries");
+  const o = await overview(c.session);
+  const wanted = matchFunction(o.functions, args.function);
+  if (wanted && !wanted.length) return { found: false, functions: o.functions.map((f) => f.name) };
+  return {
+    found: true,
+    functions: (wanted ?? o.functions).map((f) => ({
+      function: f.name,
+      starts: f.startsAt ? new Date(f.startsAt).toLocaleString("en-IN", IST) : null,
+      familiesInvited: f.invited,
+      attending: f.yes,
+      notAttending: f.no,
+      noAnswerYet: f.pending,
+      plannedPlates: f.plannedPlates,
+      familiesCheckedIn: f.checkedIn,
+      waitingInQueue: f.waiting,
+      queuePaused: f.paused,
+      tokenNowOnStage: f.nowServing,
+      mealStatus: f.mealStatus.replace(/_/g, " "),
+    })),
+  };
+}
+
+const GUEST_LIMIT = 15;
+
+/** Admin: look up families by name or token, or list who is attending / not attending / has not answered a function. */
+export async function guestLookup(c: Caller, args: { query?: string; function?: string; rsvp?: "yes" | "no" | "pending"; limit?: number }) {
+  if (c.kind !== "staff") throw new AppError("FORBIDDEN");
+  const events = (await listEvents(c.weddingId)).map((e) => ({ id: e.id, name: e.name }));
+  const limit = Math.min(Math.max(args.limit ?? 10, 1), GUEST_LIMIT);
+  const q = parseGuestQuery(args.query);
+  const fn = matchFunction(events, args.function);
+  if (fn && !fn.length) return { found: false, functions: events.map((e) => e.name) };
+
+  let famIds: string[] | null = null;
+  if (args.rsvp) {
+    const scope = fn ?? events;
+    const { data } = await db().from("rsvp").select("family_id").in("event_id", scope.map((e) => e.id)).eq("status", args.rsvp);
+    famIds = [...new Set((data ?? []).map((r) => r.family_id as string))];
+    if (!famIds.length) return { found: true, total: 0, families: [] as unknown[] };
+  }
+  let query = db().from("family").select("id, name, token_number, language", { count: "exact" }).eq("wedding_id", c.weddingId).order("name").limit(limit);
+  if (famIds) query = query.in("id", famIds);
+  if (q && "token" in q) query = query.eq("token_number", q.token);
+  if (q && "name" in q) query = query.ilike("name", likePattern(q.name));
+  const { data: fams, count, error } = await query;
+  if (error) throw new Error(error.message);
+  const ids = (fams ?? []).map((f) => f.id as string);
+  const [{ data: rs }, { data: qe }] = ids.length
+    ? await Promise.all([db().from("rsvp").select("family_id, event_id, status, headcount").in("family_id", ids), db().from("queue_entry").select("family_id, event_id, status").in("family_id", ids)])
+    : [{ data: [] }, { data: [] }];
+  return {
+    found: (fams ?? []).length > 0,
+    total: count ?? (fams ?? []).length,
+    showing: (fams ?? []).length,
+    families: shapeGuests((fams ?? []) as FamilyRow[], (rs ?? []) as RsvpRow[], (qe ?? []) as QueueRow[], events),
+  };
 }

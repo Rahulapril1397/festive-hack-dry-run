@@ -15,6 +15,7 @@ Next.js 15 (App Router) · TypeScript strict · Tailwind v4 · Zod · Supabase P
 | no Supabase locally? | any Postgres ≥15 works for SQL tests: apply `supabase/migrations/*.sql` in order, set `DATABASE_URL` (CI does this) |
 | `npx tsx scripts/nudgebee-test.ts [--bad-signature]` | post a signed test recommendation (needs `APP_URL`, `NUDGEBEE_WEBHOOK_SECRET`) |
 | `npm run migrate` | apply pending migrations (tracked in `pehle_meta.migration`; back-fills hand-migrated DBs). Also runs in prod as the Helm pre-upgrade hook |
+| `node scripts/access-matrix.mjs [--base=URL]` | signs in as every demo role and checks every page and API route against that role's real permissions (and anonymous); run against `next start` or the live site. Needs ACCESS_PASSWORDS for vendor/helper/coordinator |
 | `npm run audit:routes` | fails if any route handler neither checks a permission nor calls `publicRoute("why")` (CI) |
 | `npm run grant:super-admin -- <email>` | make an existing staff user a super admin (needs `DATABASE_URL`) |
 | `npx tsx scripts/pregen-tts.ts` | pre-generate TV announcements 1–300 into the private `tts` bucket (costs Sarvam calls) |

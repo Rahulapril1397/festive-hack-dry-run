@@ -36,3 +36,6 @@ export async function resolveCaller(mode: "staff" | "guest"): Promise<Caller> {
 }
 
 export const callerRole = (c: Caller) => (c.kind === "guest" ? "guest" : c.session.role || "coordinator");
+
+/** Stable id of who is asking (rate limits, logs): the staff user or the family. */
+export const callerKey = (c: Caller) => (c.kind === "guest" ? `family:${c.familyId}` : `user:${c.session.userId}`);

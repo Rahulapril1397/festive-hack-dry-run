@@ -13,20 +13,25 @@ import { navFor } from "@/components/shell/navConfig";
 const perms = (r: keyof typeof DEFAULT_ROLE_PERMISSIONS) => new Set<string>(DEFAULT_ROLE_PERMISSIONS[r]);
 
 describe("PinkyBua demo scope", () => {
-  it("admin gets only the photo counts tool; a guest only their own RSVP", () => {
-    expect(scopedTools("staff", perms("admin")).map((t) => t.name)).toEqual(["photo_review_counts"]);
-    expect(scopedTools("staff", perms("super_admin")).map((t) => t.name)).toEqual(["photo_review_counts"]);
+  it("admin gets function details, guest details and photo counts; a guest only their own RSVP", () => {
+    const names = (p: Set<string>) => scopedTools("staff", p).map((t) => t.name).sort();
+    expect(names(perms("admin"))).toEqual(["function_details", "guest_lookup", "photo_review_counts"]);
+    expect(names(perms("super_admin"))).toEqual(["function_details", "guest_lookup", "photo_review_counts"]);
     expect(scopedTools("guest", new Set()).map((t) => t.name)).toEqual(["my_rsvp"]);
   });
-  it("permissions still apply inside the scope (a role without photos.review gets nothing)", () => {
-    expect(scopedTools("staff", perms("kitchen"))).toEqual([]);
-    expect(scopedTools("staff", perms("stage_manager"))).toEqual([]);
+  it("permissions still apply inside the scope: each tool needs its own permission", () => {
+    const names = (p: Set<string>) => scopedTools("staff", p).map((t) => t.name).sort();
+    expect(names(perms("kitchen"))).toEqual([]);
+    expect(names(perms("stage_manager"))).toEqual([]);
+    expect(names(new Set(["families.read"]))).toEqual(["guest_lookup"]);
+    expect(names(new Set(["host.read"]))).toEqual(["function_details"]);
+    expect(names(new Set(["photos.review"]))).toEqual(["photo_review_counts"]);
   });
   it("everything else is out of scope, including write tools and ledger amounts", () => {
-    for (const t of ["ledger_summary", "queue_status", "rsvp_summary", "set_my_language", "vendor_lookup", "my_queue", "my_gifts", "faq"]) {
+    for (const t of ["ledger_summary", "queue_status", "rsvp_summary", "find_family_token", "set_my_language", "vendor_lookup", "my_queue", "my_gifts", "faq"]) {
       expect(inScope("staff", t) || inScope("guest", t), t).toBe(false);
     }
-    expect(DEMO_SCOPE.staff).toHaveLength(1);
+    expect(DEMO_SCOPE.staff).toHaveLength(3);
     expect(DEMO_SCOPE.guest).toHaveLength(1);
   });
   it("active for admin and super admin only", () => {

@@ -58,6 +58,27 @@ export const TOOLS: ToolDef[] = [
     run: async (c, args: { token: number }) => (await data()).findFamilyToken(c, args.token),
   },
   {
+    name: "function_details",
+    description: "Details of the wedding's functions: date and time, families invited, attending, not attending, no answer yet, planned plates, families checked in, queue and the token now on stage. One function by name, or all.",
+    input: z.object({ function: z.string().max(60).optional() }).strict(),
+    jsonSchema: obj({ function: { type: "string", description: "Function name such as Haldi, Sangeet or Reception; omit for all functions" } }),
+    access: { anyOf: ["host.read"] },
+    run: async (c, args: { function?: string }) => (await data()).functionDetails(c, args),
+  },
+  {
+    name: "guest_lookup",
+    description: "Guest details: find families by name or token number, or list who is attending, not attending or has not answered a function. Shows each family's token, language, RSVP per function with guest count, and where they checked in. Never returns phone numbers.",
+    input: z.object({ query: z.string().max(60).optional(), function: z.string().max(60).optional(), rsvp: z.enum(["yes", "no", "pending"]).optional(), limit: z.number().int().min(1).max(15).optional() }).strict(),
+    jsonSchema: obj({
+      query: { type: "string", description: "A family name (part of it) or a token number" },
+      function: { type: "string", description: "Function name to filter or report on" },
+      rsvp: { type: "string", enum: ["yes", "no", "pending"], description: "yes = attending, no = not attending, pending = no answer yet" },
+      limit: { type: "integer", description: "How many families to list (default 10, at most 15)" },
+    }),
+    access: { anyOf: ["families.read"] },
+    run: async (c, args: { query?: string; function?: string; rsvp?: "yes" | "no" | "pending"; limit?: number }) => (await data()).guestLookup(c, args),
+  },
+  {
     name: "photo_review_counts",
     description: "Photo matching counts per function: Matched (confirmed), Check this (needs a person), Unmatched.",
     input: z.object({}).strict(),

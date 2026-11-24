@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 /**
- * Create the Flagsmith flags the minimal demo needs (idempotent: existing flags are left alone):
+ * Create the Flagsmith flags the app reads (idempotent: existing flags are left alone):
+ *   voice_calls         ON    spoken TV announcements + PinkyBua voice (OFF = chime / English text chat)
+ *   queue_skip_override ON    grants queue.skip to the stage role
  *   sarvam_force_fail   OFF   demo switch: makes Sarvam voice look failed, PinkyBua drops to English text chat
  *   pinkybua_languages  ON    value "50" = share of guests placed in language group B (OFF = 0)
  * Uses FLAGSMITH_ADMIN_KEY (organisation key) and FLAGSMITH_ENVIRONMENT_KEY from .env.local, then
@@ -26,6 +28,8 @@ const project = environment.project;
 console.log(`Environment "${environment.name}", project ${project}`);
 
 const WANT = [
+  { name: "voice_calls", enabled: true, value: null, description: "Spoken announcements on the venue TV and PinkyBua voice; OFF = chime and English text chat" },
+  { name: "queue_skip_override", enabled: true, value: null, description: "Grants the Skip permission to the stage role" },
   { name: "sarvam_force_fail", enabled: false, value: null, description: "Demo switch: treat Sarvam voice as failed; PinkyBua drops to English text chat" },
   { name: "pinkybua_languages", enabled: true, value: "50", description: "Share (0-100) of guests placed in language group B; OFF = 0" },
 ];
@@ -43,5 +47,4 @@ for (const w of WANT) {
   const f = flags.find((x) => x.feature?.name === w.name);
   console.log(`read-back ${w.name}: ${f ? `${f.enabled ? "ON" : "OFF"}${f.feature_state_value != null ? `, value ${f.feature_state_value}` : ""}` : "NOT VISIBLE YET (edge cache can take a minute)"}`);
 }
-const vc = flags.find((x) => x.feature?.name === "voice_calls");
-console.log(`voice_calls: ${vc ? (vc.enabled ? "ON" : "OFF") : "missing"}`);
+

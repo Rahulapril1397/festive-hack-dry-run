@@ -123,11 +123,10 @@ function ActivePinkyBua({ mode, language = "en" }: { mode: "staff" | "guest"; la
     try {
       const wav = await r.stop();
       const form = new FormData();
-      form.append("mode", mode);
       if (sessionId.current) form.append("sessionId", sessionId.current);
       form.append("speak", speakRef.current ? "1" : "0");
       form.append("audio", wav, "question.wav");
-      const res = await fetch("/api/assistant/voice", { method: "POST", body: form });
+      const res = await fetch(`/api/assistant/voice?mode=${mode}`, { method: "POST", body: form });
       const body = (await res.json().catch(() => null)) as (Reply & { error?: { message?: string } }) | null;
       if (!res.ok || !body) {
         const code = (body as { error?: { code?: string } } | null)?.error?.code;
