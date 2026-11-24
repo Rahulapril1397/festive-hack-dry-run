@@ -33,6 +33,14 @@ export default async function PassPage({ params, searchParams }: { params: Promi
           {family.name}
         </h1>
         <p className="text-rose-100">{wedding.coupleNames ?? wedding.name}</p>
+        {(
+          <div className="mt-4 rounded-xl bg-white/10 p-3 text-center">
+            <p className="text-xs uppercase tracking-widest text-amber-200">{t("token.title")}</p>
+            <p className="font-display text-6xl font-bold text-amber-200" data-testid="pass-family-token">
+              {family.token ?? "—"}
+            </p>
+          </div>
+        )}
       </section>
 
       <nav className="flex flex-wrap gap-2" aria-label={t("pass.function")}>

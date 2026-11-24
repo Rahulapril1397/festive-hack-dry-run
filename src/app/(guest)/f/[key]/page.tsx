@@ -6,6 +6,8 @@ import { LanguageSelect } from "@/i18n/LanguageSelect";
 import { allowedLanguages } from "@/domain/rsvp/service";
 import { LANGUAGES, type AppLanguage } from "@/lib/sarvam/languages";
 import { RsvpForm } from "./RsvpForm";
+import { Countdown } from "@/components/guest/Countdown";
+import { eventKind, LINE_KEY, MEANING_KEY } from "@/components/guest/eventTheme";
 
 export const dynamic = "force-dynamic";
 
@@ -26,24 +28,41 @@ export default async function InvitationPage({ params }: { params: Promise<{ key
         <LanguageSelect value={family.language} label={t("language")} options={await allowedLanguages(family)} />
       </div>
 
-      <section className="rounded-2xl border border-rose-200 bg-white p-6 text-center shadow-sm">
-        <p className="text-sm uppercase tracking-widest text-rose-600">{t("invite.title")}</p>
-        <h1 className="mt-2 font-serif text-3xl font-bold text-rose-900" data-testid="couple">
+      <section className="relative overflow-hidden rounded-t-[8rem] rounded-b-2xl border-2 border-amber-400 bg-white/95 px-6 pb-6 pt-10 text-center shadow-md" data-testid="invitation">
+        <div className="toran absolute inset-x-0 top-0" aria-hidden />
+        <p lang="hi" className="text-lg font-semibold text-amber-700" aria-hidden>
+          ॐ श्री गणेशाय नमः
+        </p>
+        <p className="mt-3 text-xs uppercase tracking-[0.25em] text-rose-700">{t("invite.title")}</p>
+        <h1 className="mt-2 font-display text-5xl font-bold leading-tight text-rose-900" data-testid="couple">
           {wedding.coupleNames ?? wedding.name}
         </h1>
-        {wedding.weddingDate && (
-          <p className="mt-1 text-stone-600">
-            {t("invite.date")}: {fmtDate(wedding.weddingDate, family.language)}
-          </p>
-        )}
-        <p className="mt-4 text-stone-700">
-          {t("invite.dear")} {family.name},
+        <p className="mt-3 text-sm italic text-stone-600">{t("invite.request")}</p>
+        <p className="mt-4 text-stone-800">
+          {t("invite.dear")} <span className="font-semibold">{family.name}</span>,
         </p>
-        <p className="mt-1 text-stone-700">{invitation ? t.text(invitation) : t("invite.default")}</p>
+        <p className="mt-1 leading-relaxed text-stone-700">{invitation ? t.text(invitation) : t("invite.default")}</p>
+        {wedding.weddingDate && (
+          <>
+            <p className="mt-4 font-display text-xl font-semibold text-rose-800">{fmtDate(wedding.weddingDate, family.language)}</p>
+            <Countdown date={wedding.weddingDate} labels={{ days: t("invite.days"), hours: t("invite.hours"), mins: t("invite.mins"), secs: t("invite.secs") }} />
+            <p className="mt-2 text-xs uppercase tracking-widest text-amber-700">{t("invite.countdown")}</p>
+          </>
+        )}
       </section>
 
+      <section className="rounded-2xl border-2 border-dashed border-amber-500 bg-amber-50 p-5 text-center" data-testid="family-token">
+        <p className="text-xs uppercase tracking-widest text-amber-800">{t("token.title")}</p>
+        <p className="font-display text-7xl font-bold leading-none text-rose-800" data-testid="home-token">
+          {family.token ?? "—"}
+        </p>
+        <p className="mt-2 text-sm text-stone-700">{family.token != null ? t("token.help") : t("token.pending")}</p>
+      </section>
+
+      <p className="text-center font-display text-xl text-rose-800">{t("rsvp.joinUs")}</p>
+
       <RsvpForm
-        events={events.map((e) => ({ ...e, startsLabel: e.startsAt ? new Date(e.startsAt).toLocaleString(LANGUAGES[family.language].sarvam, { dateStyle: "medium", timeStyle: "short" }) : null }))}
+        events={events.map((e) => ({ ...e, line: t(LINE_KEY[eventKind(e.name)]), meaning: t(MEANING_KEY[eventKind(e.name)]), startsLabel: e.startsAt ? new Date(e.startsAt).toLocaleString(LANGUAGES[family.language].sarvam, { dateStyle: "medium", timeStyle: "short" }) : null }))}
         initial={rsvps}
         labels={{
           heading: t("rsvp.heading"),

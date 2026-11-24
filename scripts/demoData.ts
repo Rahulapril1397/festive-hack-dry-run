@@ -72,7 +72,7 @@ export function demoSql(users: { id: string; email: string; role: string }[] = [
     "alter table ledger_entry enable trigger ledger_entry_append_only;",
     "alter table ledger_reconciliation enable trigger ledger_reconciliation_append_only;",
     `delete from wedding where id = ${q(DEMO_WEDDING_ID)};`,
-    `insert into wedding(id, name, is_demo, couple_names, wedding_date, contact_phone, invitation_text) values (${q(DEMO_WEDDING_ID)}, 'Demo: Aarav and Meera', true, 'Aarav & Meera', '2026-12-13', '+91 98000 00000', 'With joy in our hearts, we invite your family to celebrate our wedding.');`,
+    `insert into wedding(id, name, is_demo, couple_names, wedding_date, contact_phone, invitation_text) values (${q(DEMO_WEDDING_ID)}, 'Demo: Aarav and Meera', true, 'Aarav & Meera', '2026-12-13', '+91 98000 00000', 'With the blessings of our elders and the joy in our hearts, we invite you and your family to bless our union and celebrate the beginning of our forever. Your presence will make our celebration complete.');`,
     ...DEMO_EVENTS.map(
       (e) => `insert into event(id, wedding_id, name, starts_at, language, tv_key) values (${q(e.id)}, ${q(DEMO_WEDDING_ID)}, ${q(e.name)}, ${q(e.startsAt)}, ${q(e.language)}, ${q(e.tvKey)});`,
     ),

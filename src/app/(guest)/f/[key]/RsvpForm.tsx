@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { EventBanner } from "@/components/guest/EventBanner";
 
-type Ev = { id: string; name: string; startsLabel: string | null };
+type Ev = { id: string; name: string; startsLabel: string | null; line: string; meaning: string };
 type Initial = { eventId: string; status: "pending" | "yes" | "no"; headcount: number };
 type Labels = Record<"heading" | "attending" | "notAttending" | "headcount" | "save" | "saving" | "saved" | "invalid" | "error", string>;
 type Row = { attending: boolean | null; headcount: number };
@@ -43,9 +44,11 @@ export function RsvpForm({ events, initial, labels }: { events: Ev[]; initial: I
       {events.map((e) => {
         const r = rows[e.id]!;
         return (
-          <div key={e.id} className="rounded-xl border border-stone-200 bg-white p-4" data-testid={`rsvp-${e.name}`}>
-            <p className="font-semibold">{e.name}</p>
-            {e.startsLabel && <p className="text-sm text-stone-500">{e.startsLabel}</p>}
+          <div key={e.id} className="overflow-hidden rounded-2xl border border-amber-300 bg-white shadow-sm" data-testid={`rsvp-${e.name}`}>
+            <EventBanner name={e.name} meaning={e.meaning} />
+            <div className="p-4">
+            {e.startsLabel && <p className="text-sm font-semibold text-rose-800">🪔 {e.startsLabel}</p>}
+            <p className="mt-1 text-stone-700">{e.line}</p>
             <div className="mt-3 grid grid-cols-2 gap-2">
               <button
                 type="button"
@@ -80,6 +83,7 @@ export function RsvpForm({ events, initial, labels }: { events: Ev[]; initial: I
                 />
               </label>
             )}
+            </div>
           </div>
         );
       })}
