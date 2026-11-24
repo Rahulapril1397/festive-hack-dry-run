@@ -13,6 +13,7 @@ env:
   SARVAM_API_URL: https://api.sarvam.ai
   SARVAM_TTS_MODEL: bulbul:v3
   SARVAM_SPEAKER: shubh
+  SARVAM_ASSISTANT_SPEAKER: priya   # PinkyBua speaks with a female voice; the TV announcements keep SARVAM_SPEAKER
   SARVAM_FORCE_FAIL: "0"
   FLAGSMITH_API_URL: https://edge.api.flagsmith.com/api/v1
   FLAGSMITH_ADMIN_API_URL: https://api.flagsmith.com/api/v1

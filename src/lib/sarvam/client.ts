@@ -88,7 +88,7 @@ export function createSarvamClient(opts: SarvamOptions = {}) {
       if (typeof r.translated_text !== "string" || !r.translated_text.trim()) throw new SarvamError("error", "empty translation");
       return r.translated_text;
     },
-    async tts(text: string, lang: AppLanguage): Promise<TtsAudio> {
+    async tts(text: string, lang: AppLanguage, o: { speaker?: string } = {}): Promise<TtsAudio> {
       if (opts.forceFail) throw new SarvamError("forced", "SARVAM_FORCE_FAIL=1");
       if (mock) return { bytes: mockTone(), contentType: "audio/wav" };
       if (off) throw new SarvamError("error", "SARVAM_API_KEY not configured");
@@ -96,7 +96,7 @@ export function createSarvamClient(opts: SarvamOptions = {}) {
         text,
         language_code: LANGUAGES[lang].sarvam,
         model: opts.model ?? "bulbul:v3",
-        speaker: opts.speaker ?? "shubh",
+        speaker: o.speaker ?? opts.speaker ?? "shubh",
       })) as { audios?: unknown };
       const b64 = Array.isArray(r.audios) ? r.audios[0] : undefined;
       if (typeof b64 !== "string" || !b64) throw new SarvamError("error", "no audio in response");

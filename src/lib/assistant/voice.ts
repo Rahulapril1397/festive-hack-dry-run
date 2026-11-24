@@ -3,6 +3,7 @@ import { AppError } from "@/lib/errors";
 import { log } from "@/lib/log";
 import { appLanguageOf, sarvam, SarvamError } from "@/lib/sarvam/client";
 import type { AppLanguage } from "@/lib/sarvam/languages";
+import { detectLanguage } from "./language";
 import { isEnabled } from "@/lib/flags";
 import type { Caller } from "./caller";
 import { runAssistant } from "./service";
@@ -30,31 +31,13 @@ export function speakable(text: string): string {
   return (end > 200 ? cut.slice(0, end + 1) : cut).trim();
 }
 
-const SCRIPTS: { lang: AppLanguage; re: RegExp }[] = [
-  { lang: "hi", re: /[\u0900-\u097F]/g },
-  { lang: "bn", re: /[\u0980-\u09FF]/g },
-  { lang: "pa", re: /[\u0A00-\u0A7F]/g },
-  { lang: "gu", re: /[\u0A80-\u0AFF]/g },
-  { lang: "ta", re: /[\u0B80-\u0BFF]/g },
-  { lang: "te", re: /[\u0C00-\u0C7F]/g },
-  { lang: "kn", re: /[\u0C80-\u0CFF]/g },
-  { lang: "ml", re: /[\u0D00-\u0D7F]/g },
-  { lang: "en", re: /[A-Za-z]/g },
-];
-
-/** Speak the reply in the script it was written in (Devanagari is Hindi, or Marathi when that is the asker's language); else the asker's language. */
+/** Speak the reply in the language it was written in (script), else the asker's language. */
 export function replyLanguage(text: string, fallback: AppLanguage): AppLanguage {
-  let best: AppLanguage = fallback;
-  let max = 0;
-  for (const { lang, re } of SCRIPTS) {
-    const n = (text.match(re) ?? []).length;
-    if (n > max) {
-      max = n;
-      best = lang;
-    }
-  }
-  return best === "hi" && fallback === "mr" ? "mr" : best;
+  return detectLanguage(text, fallback) ?? fallback;
 }
+
+/** PinkyBua speaks with a female voice (Sarvam bulbul:v3 "priya"); the TV announcements keep SARVAM_SPEAKER. */
+export const assistantSpeaker = () => process.env.SARVAM_ASSISTANT_SPEAKER || "priya";
 
 export type VoiceStatus = { available: boolean; reason: "ok" | "off" | "forced" | "flag" };
 
@@ -89,14 +72,16 @@ export async function runVoice(c: Caller, input: { sessionId?: string; audio: Bl
   }
   if (!heard.transcript) throw new AppError("NO_SPEECH", "I didn't catch that — please try again");
 
-  const reply = await runAssistant(c, { sessionId: input.sessionId, text: heard.transcript.slice(0, 2000) });
-  const spokenLang = replyLanguage(reply.text, appLanguageOf(heard.language) ?? c.language);
+  // Answer in the language that was spoken: the transcript's script first, then what Sarvam detected.
+  const spoken = detectLanguage(heard.transcript, c.language) ?? appLanguageOf(heard.language) ?? c.language;
+  const reply = await runAssistant(c, { sessionId: input.sessionId, text: heard.transcript.slice(0, 2000), replyLanguage: spoken });
+  const spokenLang = replyLanguage(reply.text, spoken);
 
   let audio: string | null = null;
   let degraded = false;
   if (input.speak && reply.text) {
     try {
-      const a = await sarvam({ timeoutMs: 12_000 }).tts(speakable(reply.text), spokenLang);
+      const a = await sarvam({ timeoutMs: 12_000 }).tts(speakable(reply.text), spokenLang, { speaker: assistantSpeaker() });
       audio = Buffer.from(a.bytes).toString("base64");
     } catch (e) {
       degraded = true; // the written answer still goes out; the widget switches to English text chat

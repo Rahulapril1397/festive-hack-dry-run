@@ -13,6 +13,8 @@ import { FRIENDLY, runLoop, type ProposedAction } from "./loop";
 import { defaultProvider, type ChatProvider, type Turn } from "./provider";
 import { allowedFor, permissionsOf, toolByName, type ToolDef } from "./tools";
 import { inScope, scopedTools } from "./scope";
+import { detectLanguage } from "./language";
+import type { AppLanguage } from "@/lib/sarvam/languages";
 
 const HISTORY_TURNS = 24;
 const ACTION_TTL_MS = 5 * 60_000;
@@ -50,7 +52,10 @@ async function recheck(c: Caller, tool: ToolDef): Promise<boolean> {
   return true;
 }
 
-export async function runAssistant(c: Caller, input: { sessionId?: string; text: string }, provider: ChatProvider | null = defaultProvider()) {
+export async function runAssistant(c0: Caller, input: { sessionId?: string; text: string; replyLanguage?: AppLanguage }, provider: ChatProvider | null = defaultProvider()) {
+  // Reply in the language the person is using: forced by the caller (voice detection, English fallback),
+  // else the script of what they typed, else the language of their link (guests) / English (staff).
+  const c: Caller = { ...c0, language: input.replyLanguage ?? detectLanguage(input.text, c0.language) ?? c0.language };
   const sessionId = await sessionFor(c, input.sessionId);
   if (!provider) return { sessionId, text: FRIENDLY.error };
   const role = callerRole(c);
@@ -74,7 +79,7 @@ export async function runAssistant(c: Caller, input: { sessionId?: string; text:
 
   let text = result.text;
   // Guests get their family language; translate only if the model answered in Latin letters instead of that language's script.
-  if (c.kind === "guest" && c.language !== "en" && !/[^\u0000-\u024F]/.test(text) && result.outcome === "ok") {
+  if (c.language !== "en" && !/[^\u0000-\u024F]/.test(text) && result.outcome === "ok") {
     text = await sarvam().translate(text, c.language).catch(() => text);
   }
   const pa = result.proposedAction;
