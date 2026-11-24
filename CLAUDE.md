@@ -21,6 +21,7 @@ Next.js 15 (App Router) · TypeScript strict · Tailwind v4 · Zod · Supabase P
 | `npx tsx scripts/pregen-tts.ts` | pre-generate TV announcements 1–300 into the private `tts` bucket (costs Sarvam calls) |
 | `npx tsx scripts/pregen-translations.ts [--langs=hi,ta,…]` | translate every screen text (`src/i18n/en.json`) once into the guest languages and store it in `translation` (costs Sarvam calls) |
 | `npx tsx scripts/photo-demo.ts seed <folder> \| reset [--with-events]` | additive demo data for photo matching: stage events around the demo photos' capture times; reset removes the uploaded batch |
+| `npx tsx scripts/planning-demo.ts seed \| reset` | additive planning demo: venue/station/airport, 50 rooms, travel + food answers, a transport vendor linked to the vendor login, two drivers. Rooms are allocated from the Rooms page |
 | `npx tsx scripts/pin-demo-families.ts` | pin two demo families to language group A / B and reset their language screen |
 | `bash deploy/deploy-stage3.sh [--domain=HOST]` · `bash deploy/setup-https-endpoints.sh` · `node scripts/set-auth-urls.mjs https://HOST` | minimal-demo release · free `*.endpoints.<project>.cloud.goog` hostname · Supabase sign-in URLs |
 | `bash deploy/gcp-deploy.sh` | one-command production deploy to GKE (see `deploy/README.md`) |
@@ -144,3 +145,11 @@ If you need a change in another lane, stop and ask its owner.
 - Stage 2 default role permission sets (spec §3.2) are interpreted in `0010_rbac.sql`; confirm with the spec owner. Notably stage managers no longer see Families (phones), coordinators have no ledger access.
 - PinkyBua runs on Sarvam chat (owner's decision) instead of doc_e2_s2's default Anthropic provider; Anthropic remains selectable with ASSISTANT_PROVIDER=anthropic. Real-model eval (`tests/assistant/RESULTS.md`) not yet run.
 - Supabase Auth → URL Configuration must allow `<APP_URL>/login/accept` for invite links.
+
+## Planning (rooms, transport, vendor portal)
+- Permissions `planning.read` (admin, host, coordinator), `planning.write` (admin, host), `vendor.portal` (admin and a custom `vendor` role). Pages `/host/planning`, `/host/rooms`, `/host/transport`, `/vendor`; APIs under `/api/planning/*`.
+- Rooms: 6 people per room (setting), every person counts the same, a family keeps whole rooms together (`rooms_autoallocate`, one transaction). Guests never ask for a room; they see theirs, and their driver, on the family page once the admin allocates.
+- Pickup point comes from how the guest travels: train → `wedding.station_name`, flight → `wedding.airport_name`. A driver's name, number and vehicle are shown to the family; a vendor never sees guest phone numbers.
+- A vendor login sees only its own bookings: `vendor.login_user_id` links a login to one vendor (`PUT /api/planning/vendor-login`, `vendors.manage`).
+- Housekeeping and vehicle numbers are recommendations from editable ratios in `wedding.plan_settings` (`src/domain/planning/calc.ts`, unit-tested); nothing here goes to Sarvam or Flagsmith.
+- A one-to-one PostgREST embed (`room` → `room_allocation`) returns an object, not an array: use `many()` in `src/domain/planning/service.ts`.
