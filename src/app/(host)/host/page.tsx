@@ -2,12 +2,15 @@ import Link from "next/link";
 import { requirePage } from "@/components/shell/guard";
 import { overview } from "@/domain/host/queries";
 import { AutoRefresh } from "@/components/shell/AutoRefresh";
+import { hasPermission } from "@/lib/authz";
+import { vendorSummary } from "@/domain/vendors/service";
+import { taskSummary } from "@/domain/tasks/service";
 
 export const dynamic = "force-dynamic";
 
 export default async function HostOverview() {
   const s = await requirePage("host.read", "/host");
-  const o = await overview(s);
+  const [o, vendors, tasks] = await Promise.all([overview(s), vendorSummary(s), hasPermission(s, "tasks.read").then((ok) => (ok ? taskSummary(s.weddingId) : null))]);
   const k = o.kpis;
   return (
     <main className="flex flex-col gap-6 p-4 md:p-6">
@@ -26,6 +29,33 @@ export default async function HostOverview() {
         <Kpi label="Queue waiting" value={k.queueWaiting} />
         <Kpi label="Ledger entries" value={k.ledgerEntries} />
       </section>
+
+      {(vendors || tasks) && (
+        <section className="grid gap-3 md:grid-cols-2">
+          {tasks && (
+            <Link href="/tasks" className="rounded-xl border border-stone-200 bg-white p-4 hover:border-rose-300" data-testid="card-tasks">
+              <p className="text-sm text-stone-500">Tasks</p>
+              <p className="text-2xl font-bold">
+                {tasks.open} open
+                {tasks.overdue > 0 && <span className="ml-2 rounded-full bg-red-100 px-2 align-middle text-sm font-semibold text-red-800">{tasks.overdue} overdue</span>}
+              </p>
+              <p className="text-sm text-stone-600">
+                {tasks.dueToday} due today · {tasks.blocked} blocked
+              </p>
+            </Link>
+          )}
+          {vendors && (
+            <Link href="/vendors" className="rounded-xl border border-stone-200 bg-white p-4 hover:border-rose-300" data-testid="card-vendors">
+              <p className="text-sm text-stone-500">Vendors</p>
+              <p className="text-2xl font-bold">{vendors.total} active</p>
+              <p className="text-sm text-stone-600">
+                {vendors.booked} booked for a function{vendors.unbooked ? ` · ${vendors.unbooked} not booked yet` : ""}
+              </p>
+              {vendors.byCategory.length > 0 && <p className="mt-1 truncate text-xs text-stone-500">{vendors.byCategory.slice(0, 5).map((c) => `${c.name} ${c.count}`).join(" · ")}</p>}
+            </Link>
+          )}
+        </section>
+      )}
 
       <section>
         <h2 className="mb-2 font-semibold">Function attendance</h2>

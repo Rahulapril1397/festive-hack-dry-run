@@ -2,12 +2,14 @@ import { requirePage } from "@/components/shell/guard";
 import { hasPermission } from "@/lib/authz";
 import { overview } from "@/domain/host/queries";
 import { PostForm } from "@/components/shell/PostForm";
+import { vendorsByEvent } from "@/domain/vendors/service";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
 export default async function FunctionsPage() {
   const s = await requirePage("host.read", "/host/functions");
-  const [{ functions }, canCreate] = await Promise.all([overview(s), hasPermission(s, "event.write")]);
+  const [{ functions }, canCreate, vendors] = await Promise.all([overview(s), hasPermission(s, "event.write"), vendorsByEvent(s)]);
   return (
     <main className="grid gap-6 p-4 md:grid-cols-[1fr_20rem] md:p-6">
       <section>
@@ -20,6 +22,18 @@ export default async function FunctionsPage() {
               <p className="mt-1 text-sm">
                 {f.yes} attending · {f.plannedPlates} plates · {f.checkedIn} checked in
               </p>
+              {(vendors.get(f.eventId) ?? []).length > 0 && (
+                <ul className="mt-2 flex flex-wrap gap-1" data-testid="function-vendors">
+                  {vendors.get(f.eventId)!.map((v) => (
+                    <li key={v.id}>
+                      <Link href={`/vendors/${v.id}`} className="inline-block rounded bg-rose-50 px-2 py-0.5 text-xs text-rose-900 hover:underline" title={v.scope ?? undefined}>
+                        {v.category}: {v.name}
+                        {v.arrivalAt && ` · ${new Date(v.arrivalAt).toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" })}`}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </li>
           ))}
         </ul>

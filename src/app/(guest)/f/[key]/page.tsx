@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 import { loadGuest } from "@/domain/rsvp/service";
 import { getT } from "@/i18n";
 import { LanguageSelect } from "@/i18n/LanguageSelect";
+import { LanguageHint } from "@/i18n/LanguageHint";
+import { fromAcceptLanguage, shouldSuggest } from "@/lib/geo/acceptLanguage";
 import { RsvpForm } from "./RsvpForm";
 
 export const dynamic = "force-dynamic";
@@ -17,12 +20,30 @@ export default async function InvitationPage({ params }: { params: Promise<{ key
   const { family, wedding, events, rsvps } = g;
   const invitation = wedding.invitationText ?? undefined;
   const t = await getT(family.language, wedding.id, invitation ? [invitation] : []);
+  const showHint = family.languageSource === "default" && !family.hintDismissed;
+  const suggestion = showHint ? shouldSuggest(family, fromAcceptLanguage((await headers()).get("accept-language"))) : null;
 
   return (
     <main className="flex flex-col gap-6">
       <div className="flex justify-end">
         <LanguageSelect value={family.language} label={t("language")} />
       </div>
+      {showHint && (
+        <LanguageHint
+          current={family.language}
+          suggestion={suggestion}
+          labels={{
+            suggest: t("lang.suggest"),
+            switch: t("lang.switch"),
+            notNow: t("lang.notNow"),
+            useLocation: t("lang.useLocation"),
+            locating: t("lang.locating"),
+            noMatch: t("lang.locationNoMatch"),
+            denied: t("lang.locationDenied"),
+            privacy: t("lang.locationPrivacy"),
+          }}
+        />
+      )}
 
       <section className="rounded-2xl border border-rose-200 bg-white p-6 text-center shadow-sm">
         <p className="text-sm uppercase tracking-widest text-rose-600">{t("invite.title")}</p>

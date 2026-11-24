@@ -78,7 +78,7 @@ function guardsIn(body: string): string[] {
 /** Literal permission keys passed in this handler, e.g. requirePermission(s, "ledger.read", …). */
 function permissionsIn(body: string): string[] {
   const keys = new Set<string>();
-  for (const m of body.matchAll(/["'`]([a-z_]+\.[a-z_]+)["'`]/g)) if (/^(queue|clock|host|families|event|rsvp|photos|kitchen|ledger|users|roles|weddings|audit|ops|integrations|assistant|jobs|tasks|gifts|thanks|vendors)\./.test(m[1]!)) keys.add(m[1]!);
+  for (const m of body.matchAll(/["'`]([a-z_]+(?:\.[a-z_]+)+)["'`]/g)) if (/^(queue|clock|host|families|event|rsvp|photos|kitchen|ledger|users|roles|weddings|audit|ops|integrations|assistant|jobs|tasks|gifts|thanks|vendors)\./.test(m[1]!)) keys.add(m[1]!);
   return [...keys].sort();
 }
 

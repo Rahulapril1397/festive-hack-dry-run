@@ -30,6 +30,7 @@ const queue = () => import("@/domain/queue/service");
 const ledger = () => import("@/domain/ledger/service");
 const ledgerModel = () => import("@/domain/ledger/model");
 const data = () => import("./data");
+const stage3 = () => import("./stage3");
 
 export const TOOLS: ToolDef[] = [
   {
@@ -79,6 +80,46 @@ export const TOOLS: ToolDef[] = [
     jsonSchema: obj({ topic: { type: "string", description: "What the user wants explained" } }, ["topic"]),
     access: { anyOf: ["assistant.use"] },
     run: async (c, args: { topic: string }) => (await data()).explain(c, args.topic),
+  },
+  {
+    name: "tasks_overview",
+    description: "Wedding tasks: counts (open, overdue, due today, blocked) and the caller's own open tasks with due times. Titles and owner names only.",
+    input: z.object({}).strict(),
+    jsonSchema: obj({}),
+    access: { anyOf: ["tasks.read"] },
+    run: async (c) => (await stage3()).tasksOverview(c),
+  },
+  {
+    name: "gift_claims_summary",
+    description: "Gift wishlist totals: gifts, fully claimed, claims, received, and which gifts are still open. No family names.",
+    input: z.object({}).strict(),
+    jsonSchema: obj({}),
+    access: { anyOf: ["gifts.manage"] },
+    run: async (c) => (await stage3()).giftSummary(c),
+  },
+  {
+    name: "thank_you_stats",
+    description: "Thank-you notes A/B test: sent, opened and open rate per version, drafts waiting, notes kept in English.",
+    input: z.object({}).strict(),
+    jsonSchema: obj({}),
+    access: { anyOf: ["thanks.manage"] },
+    run: async (c) => (await stage3()).thanksStats(c),
+  },
+  {
+    name: "vendor_lookup",
+    description: "Find vendors by name or category (caterer, decorator…): name, category, status and which functions they are booked for. No phone numbers or amounts.",
+    input: z.object({ query: z.string().max(100).optional() }).strict(),
+    jsonSchema: obj({ query: { type: "string", description: "Name or category; omit to list all" } }),
+    access: { anyOf: ["vendors.contacts.read", "vendors.manage"] },
+    run: async (c, args: { query?: string }) => (await stage3()).vendorLookup(c, args.query),
+  },
+  {
+    name: "my_gifts",
+    description: "This family's own gift wishlist choices, and gifts that are still available to choose.",
+    input: z.object({}).strict(),
+    jsonSchema: obj({}),
+    access: { guest: true },
+    run: async (c) => (await stage3()).myGifts(c),
   },
   {
     name: "my_rsvp",

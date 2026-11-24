@@ -2,10 +2,13 @@
  * Sarvam AI client (verified against docs.sarvam.ai):
  *   POST {SARVAM_API_URL}/translate       { input, source_language_code, target_language_code } → { translated_text }
  *   POST {SARVAM_API_URL}/text-to-speech  { text, language_code, model, speaker }              → { audios: [base64 WAV] }
+ *   POST {SARVAM_API_URL}/speech-to-text  multipart { file, model, mode, language_code }       → { transcript, language_code }
  *   header api-subscription-key
  * 3-second timeout on every call. Empty SARVAM_API_KEY: mock in tests/local only; in staging/prod
  * the client is "off" (translate returns English, tts throws → TV chime). SARVAM_FORCE_FAIL=1
- * makes tts throw. Only static UI copy and token announcements are ever sent — no names/phones/amounts.
+ * makes tts throw. Translation/TTS for guests and the TV get only static UI copy, approved templates
+ * and token announcements. Stage 3: PinkyBua voice sends the caller's own recorded question (STT)
+ * and PinkyBua's reply (TTS) — the same text the Sarvam chat model already produced.
  */
 import { LANGUAGES, type AppLanguage } from "./languages";
 import { mockAllowed } from "@/lib/mockPolicy";
@@ -24,6 +27,8 @@ export type SarvamOptions = {
   apiUrl?: string;
   model?: string;
   speaker?: string;
+  /** speech-to-text model; verified: saaras:v3 (mode transcribe), saarika:v2.5 */
+  sttModel?: string;
   forceFail?: boolean;
   timeoutMs?: number;
   fetchImpl?: typeof fetch;
@@ -32,6 +37,13 @@ export type SarvamOptions = {
 };
 
 export type TtsAudio = { bytes: Uint8Array; contentType: string };
+export type SttResult = { transcript: string; language: string | null };
+
+/** Sarvam BCP-47 code ("hi-IN") → app language, if enabled. */
+export function appLanguageOf(code: string | null | undefined): AppLanguage | null {
+  const hit = (Object.entries(LANGUAGES) as [string, { sarvam: string; enabled: boolean }][]).find(([, v]) => v.sarvam.toLowerCase() === (code ?? "").toLowerCase());
+  return hit && hit[1].enabled ? (hit[0] as AppLanguage) : null;
+}
 
 export function createSarvamClient(opts: SarvamOptions = {}) {
   const apiKey = opts.apiKey ?? "";
@@ -45,11 +57,12 @@ export function createSarvamClient(opts: SarvamOptions = {}) {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), timeoutMs);
     try {
+      const multipart = body instanceof FormData;
       const res = await fetchImpl(`${apiUrl}${path}`, {
         method: "POST",
         signal: ctrl.signal,
-        headers: { "api-subscription-key": apiKey, "content-type": "application/json" },
-        body: JSON.stringify(body),
+        headers: multipart ? { "api-subscription-key": apiKey } : { "api-subscription-key": apiKey, "content-type": "application/json" },
+        body: multipart ? body : JSON.stringify(body),
       });
       if (!res.ok) throw new SarvamError("error", `HTTP ${res.status}`);
       return await res.json();
@@ -89,18 +102,34 @@ export function createSarvamClient(opts: SarvamOptions = {}) {
       if (typeof b64 !== "string" || !b64) throw new SarvamError("error", "no audio in response");
       return { bytes: new Uint8Array(Buffer.from(b64, "base64")), contentType: "audio/wav" };
     },
+    /** Speech → text. `language` "unknown" lets Sarvam detect it (Hindi, English, Hinglish…). */
+    async stt(audio: Blob, opts2: { language?: AppLanguage | "unknown"; model?: string } = {}): Promise<SttResult> {
+      if (opts.forceFail) throw new SarvamError("forced", "SARVAM_FORCE_FAIL=1");
+      if (mock) return { transcript: "How many families are checked in?", language: "en-IN" };
+      if (off) throw new SarvamError("error", "SARVAM_API_KEY not configured");
+      const form = new FormData();
+      form.append("file", audio, "question.wav");
+      form.append("model", opts2.model ?? opts.sttModel ?? "saaras:v3");
+      form.append("mode", "transcribe");
+      form.append("language_code", opts2.language && opts2.language !== "unknown" ? LANGUAGES[opts2.language].sarvam : "unknown");
+      const r = (await post("/speech-to-text", form)) as { transcript?: unknown; language_code?: unknown };
+      if (typeof r.transcript !== "string") throw new SarvamError("error", "no transcript in response");
+      return { transcript: r.transcript.trim(), language: typeof r.language_code === "string" ? r.language_code : null };
+    },
   };
 }
 
 export type SarvamClient = ReturnType<typeof createSarvamClient>;
 
 /** Reads env on each call so SARVAM_FORCE_FAIL can be flipped without a restart in tests. */
-export function sarvam(): SarvamClient {
+export function sarvam(o: { timeoutMs?: number } = {}): SarvamClient {
   return createSarvamClient({
+    timeoutMs: o.timeoutMs,
     apiKey: process.env.SARVAM_API_KEY ?? "",
     apiUrl: process.env.SARVAM_API_URL || undefined,
     model: process.env.SARVAM_TTS_MODEL || undefined,
     speaker: process.env.SARVAM_SPEAKER || undefined,
+    sttModel: process.env.SARVAM_STT_MODEL || undefined,
     forceFail: process.env.SARVAM_FORCE_FAIL === "1",
   });
 }

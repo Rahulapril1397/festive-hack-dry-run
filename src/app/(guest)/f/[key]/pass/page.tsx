@@ -5,6 +5,7 @@ import { getQueueStatus } from "@/domain/queue";
 import { getT } from "@/i18n";
 import { LanguageSelect } from "@/i18n/LanguageSelect";
 import { PassView } from "./PassView";
+import { noteStatusForFamily } from "@/domain/thanks/service";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,7 @@ export default async function PassPage({ params, searchParams }: { params: Promi
   const { family, wedding, events } = g;
   const event = events.find((e) => e.id === sp.event) ?? pickDefaultEvent(events);
   const t = await getT(family.language, wedding.id);
-  const status = event ? await getQueueStatus(family.id, event.id) : null;
+  const [status, note] = await Promise.all([event ? getQueueStatus(family.id, event.id) : Promise.resolve(null), noteStatusForFamily(family.id)]);
 
   return (
     <main className="flex flex-col gap-5">
@@ -49,12 +50,20 @@ export default async function PassPage({ params, searchParams }: { params: Promi
       {event && status && <PassView eventId={event.id} initial={status} labels={t.dict()} />}
 
       <section className="grid grid-cols-2 gap-3">
-        {(["pass.photos", "pass.thanks"] as const).map((k) => (
-          <div key={k} className="rounded-xl border border-dashed border-stone-300 bg-white p-4 text-center">
-            <p className="font-medium">{t(k)}</p>
-            <p className="text-xs text-stone-500">{t("comingSoon")}</p>
-          </div>
-        ))}
+        <Link href={`/f/${family.linkKey}/gifts`} className="rounded-xl border border-stone-200 bg-white p-4 text-center hover:border-rose-300" data-testid="pass-gifts">
+          <p className="text-2xl" aria-hidden>
+            🎁
+          </p>
+          <p className="font-medium">{t("gifts.title")}</p>
+        </Link>
+        <Link href={`/f/${family.linkKey}/thanks`} className="relative rounded-xl border border-stone-200 bg-white p-4 text-center hover:border-rose-300" data-testid="pass-thanks">
+          {note.sent && !note.opened && <span className="absolute right-2 top-2 rounded-full bg-rose-700 px-2 text-[10px] font-bold uppercase text-white">{t("thanks.new")}</span>}
+          <p className="text-2xl" aria-hidden>
+            💌
+          </p>
+          <p className="font-medium">{t("pass.thanks")}</p>
+          {!note.sent && <p className="text-xs text-stone-500">{t("comingSoon")}</p>}
+        </Link>
       </section>
 
       {wedding.contactPhone && (

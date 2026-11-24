@@ -8,7 +8,7 @@ import { copyText } from "@/components/shell/copyText";
 import { api } from "@/components/shell/api";
 
 type Opt = { id: string; name: string };
-type Props = { initialTasks: Task[]; owners: Opt[]; events: Opt[]; me: string | null; can: { manage: boolean; updateOwn: boolean }; openTaskId: string | null };
+type Props = { initialTasks: Task[]; owners: Opt[]; events: Opt[]; vendors: Opt[]; me: string | null; can: { manage: boolean; updateOwn: boolean }; openTaskId: string | null };
 
 const fmt = (iso: string | null) => (iso ? new Date(iso).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Kolkata" }) : "—");
 /** ISO → value for <input type="datetime-local"> in the browser's zone. */
@@ -133,6 +133,7 @@ export function TasksBoard(p: Props) {
           <TaskForm
             owners={p.owners}
             events={p.events}
+            vendors={p.vendors}
             submit="Create task"
             onSubmit={async (body) => {
               const t = await api<Task>("/api/tasks", { method: "POST", body });
@@ -169,9 +170,9 @@ function Drawer({ title, onClose, children }: { title: string; onClose: () => vo
   );
 }
 
-type FormBody = { title: string; description: string; ownerParticipantId: string; eventId: string; dueAt: string; priority: string };
+type FormBody = { title: string; description: string; ownerParticipantId: string; eventId: string; vendorId?: string; dueAt: string; priority: string };
 
-function TaskForm({ owners, events, initial, submit, onSubmit }: { owners: Opt[]; events: Opt[]; initial?: Partial<FormBody>; submit: string; onSubmit: (b: FormBody) => Promise<void> }) {
+function TaskForm({ owners, events, vendors, initial, submit, onSubmit }: { owners: Opt[]; events: Opt[]; vendors: Opt[]; initial?: Partial<FormBody>; submit: string; onSubmit: (b: FormBody) => Promise<void> }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   return (
@@ -189,6 +190,7 @@ function TaskForm({ owners, events, initial, submit, onSubmit }: { owners: Opt[]
             description: String(f.get("description") ?? ""),
             ownerParticipantId: String(f.get("ownerParticipantId") ?? ""),
             eventId: String(f.get("eventId") ?? ""),
+            ...(f.has("vendorId") ? { vendorId: String(f.get("vendorId")) } : {}), // absent without vendor access: leave the link alone
             dueAt: fromLocalInput(String(f.get("dueAt") ?? "")),
             priority: String(f.get("priority") ?? "normal"),
           });
@@ -234,6 +236,19 @@ function TaskForm({ owners, events, initial, submit, onSubmit }: { owners: Opt[]
           Due
           <input name="dueAt" type="datetime-local" defaultValue={initial?.dueAt ? toLocalInput(initial.dueAt) : ""} className="input mt-1 !text-base" />
         </label>
+        {vendors.length > 0 && (
+          <label className="col-span-2 text-sm">
+            Vendor (optional)
+            <select name="vendorId" defaultValue={initial?.vendorId ?? ""} className="input mt-1 !text-base">
+              <option value="">—</option>
+              {vendors.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <label className="text-sm">
           Priority
           <select name="priority" defaultValue={initial?.priority ?? "normal"} className="input mt-1 !text-base">
@@ -293,8 +308,9 @@ function TaskDrawer({ id, p, onClose, onChanged }: { id: string; p: Props; onClo
         <TaskForm
           owners={p.owners}
           events={p.events}
+          vendors={p.vendors}
           submit="Save"
-          initial={{ title: t.title, description: t.description ?? "", ownerParticipantId: t.owner?.id ?? "", eventId: t.event?.id ?? "", dueAt: t.dueAt ?? "", priority: t.priority }}
+          initial={{ title: t.title, description: t.description ?? "", ownerParticipantId: t.owner?.id ?? "", eventId: t.event?.id ?? "", vendorId: t.vendor?.id ?? "", dueAt: t.dueAt ?? "", priority: t.priority }}
           onSubmit={async (body) => {
             await api(`/api/tasks/${id}`, { method: "PATCH", body });
             setEditing(false);

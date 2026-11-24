@@ -7,7 +7,7 @@ import { isAppLanguage, type AppLanguage } from "@/lib/sarvam/languages";
 import { GUEST_COOKIE, verifyGuestCookie } from "./guestCookie";
 import type { RsvpInputT } from "./schema";
 
-export type GuestFamily = { id: string; name: string; language: AppLanguage; weddingId: string; linkKey: string; token: number | null };
+export type GuestFamily = { id: string; name: string; language: AppLanguage; weddingId: string; linkKey: string; token: number | null; languageSource: string; hintDismissed: boolean };
 export type GuestWedding = {
   id: string;
   name: string;
@@ -25,7 +25,7 @@ export const loadGuest = cache(async (linkKey: string) => {
   if (!/^[A-Za-z0-9_-]{8,64}$/.test(linkKey)) return null;
   const { data: f } = await db()
     .from("family")
-    .select("id, name, language, wedding_id, link_key, token_number")
+    .select("id, name, language, wedding_id, link_key, token_number, language_source, language_hint_dismissed_at")
     .eq("link_key", linkKey)
     .maybeSingle();
   if (!f) return null;
@@ -42,6 +42,8 @@ export const loadGuest = cache(async (linkKey: string) => {
     weddingId: f.wedding_id,
     linkKey: f.link_key,
     token: f.token_number,
+    languageSource: f.language_source ?? "default",
+    hintDismissed: !!f.language_hint_dismissed_at,
   };
   const wedding: GuestWedding = {
     id: w.id,
@@ -74,7 +76,15 @@ export async function saveRsvps(familyId: string, input: RsvpInputT): Promise<Gu
   return rows.map((r) => ({ eventId: r.event_id, status: r.status, headcount: r.headcount }));
 }
 
-export async function setFamilyLanguage(familyId: string, language: AppLanguage) {
-  const { error } = await db().from("family").update({ language }).eq("id", familyId);
+export type LanguageSource = "manual" | "browser" | "location" | "host";
+
+export async function setFamilyLanguage(familyId: string, language: AppLanguage, source: LanguageSource = "manual") {
+  const { error } = await db().from("family").update({ language, language_source: source }).eq("id", familyId);
+  if (error) throw new Error(error.message);
+}
+
+/** "Not now" on the language suggestion banner. */
+export async function dismissLanguageHint(familyId: string) {
+  const { error } = await db().from("family").update({ language_hint_dismissed_at: new Date().toISOString() }).eq("id", familyId);
   if (error) throw new Error(error.message);
 }
