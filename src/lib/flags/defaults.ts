@@ -2,6 +2,7 @@
 export const FLAG_DEFAULTS = {
   voice_calls: true, // TTS announcements on the TV. Default ON.
   queue_skip_override: true, // grants queue.skip to allowlisted roles
+  sarvam_force_fail: false, // demo/test switch: treat Sarvam (voice) as failing, PinkyBua drops to English text chat
 } as const;
 export type FlagName = keyof typeof FLAG_DEFAULTS;
 
@@ -9,4 +10,5 @@ export type FlagName = keyof typeof FLAG_DEFAULTS;
 export const FLAG_FALLBACK: Record<FlagName, boolean> = {
   voice_calls: true, // keep announcing; the TV chimes anyway if TTS fails
   queue_skip_override: false, // never grant extra permissions on failure
+  sarvam_force_fail: false, // a Flagsmith outage must never switch voice off
 };

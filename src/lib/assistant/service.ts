@@ -12,6 +12,7 @@ import { knowledgeFor } from "./kb";
 import { FRIENDLY, runLoop, type ProposedAction } from "./loop";
 import { defaultProvider, type ChatProvider, type Turn } from "./provider";
 import { allowedFor, permissionsOf, toolByName, type ToolDef } from "./tools";
+import { inScope, scopedTools } from "./scope";
 
 const HISTORY_TURNS = 24;
 const ACTION_TTL_MS = 5 * 60_000;
@@ -54,14 +55,14 @@ export async function runAssistant(c: Caller, input: { sessionId?: string; text:
   if (!provider) return { sessionId, text: FRIENDLY.error };
   const role = callerRole(c);
   const system = buildSystemPrompt(c, role, knowledgeFor(role), new Date().toISOString().slice(0, 10));
-  const tools = allowedFor(c.kind, permissionsOf(c));
+  const tools = scopedTools(c.kind, permissionsOf(c));
   const started = Date.now();
 
   const result = await runLoop(system, await history(sessionId), input.text, {
     provider,
     caller: c,
     tools,
-    recheck: (t) => recheck(c, t),
+    recheck: async (t) => inScope(c.kind, t.name) && (await recheck(c, t)),
     propose: (t, args) => propose(c, sessionId, t, args),
     persist: async (turn) => {
       await db().from("assistant_message").insert({ session_id: sessionId, role: turn.role, content: turn });
@@ -72,9 +73,9 @@ export async function runAssistant(c: Caller, input: { sessionId?: string; text:
   });
 
   let text = result.text;
-  // Guests get their family language; translate only if the model did not already answer in it.
-  if (c.kind === "guest" && c.language === "hi" && !/[ऀ-ॿ]/.test(text) && result.outcome === "ok") {
-    text = await sarvam().translate(text, "hi").catch(() => text);
+  // Guests get their family language; translate only if the model answered in Latin letters instead of that language's script.
+  if (c.kind === "guest" && c.language !== "en" && !/[^\u0000-\u024F]/.test(text) && result.outcome === "ok") {
+    text = await sarvam().translate(text, c.language).catch(() => text);
   }
   const pa = result.proposedAction;
   return { sessionId, text, proposedAction: pa ? { id: pa.id, token: pa.token, summary: pa.summary, args: pa.args, expiresAt: pa.expiresAt } : undefined };

@@ -1,15 +1,15 @@
 import type { E2ERole } from "./harness";
 
-/** Visible nav per role with the default permission sets (0010_rbac.sql + Stage 3 migrations). */
+/** Visible nav per role with the default permission sets (0010_rbac.sql + Stage 3 migrations; minimal demo menu). */
 export const EXPECTED_NAV: Record<E2ERole, string[]> = {
-  super_admin: ["overview", "functions", "families", "kitchen", "stage", "photographer", "review", "album", "ledger", "tasks", "vendors", "gifts", "thank-yous", "people", "users", "jobs", "integrations", "ops"],
-  admin: ["overview", "functions", "families", "kitchen", "stage", "photographer", "review", "album", "ledger", "tasks", "vendors", "gifts", "thank-yous", "people", "users", "jobs", "integrations", "ops"],
-  host: ["overview", "functions", "families", "kitchen", "stage", "review", "album", "ledger", "tasks", "vendors", "gifts", "thank-yous", "integrations"],
-  coordinator: ["overview", "functions", "families", "kitchen", "stage", "review", "album", "tasks", "vendors", "gifts"],
-  stage_manager: ["stage", "tasks"],
-  kitchen: ["kitchen", "tasks"],
-  photographer: ["photographer", "review", "album", "tasks"],
-  finance: ["families", "ledger", "tasks", "vendors"],
+  super_admin: ["overview", "functions", "families", "kitchen", "stage", "photographer", "review", "album", "vendors", "readiness", "tasks", "ledger", "users", "integrations", "ops"],
+  admin: ["overview", "functions", "families", "kitchen", "stage", "photographer", "review", "album", "vendors", "readiness", "tasks", "ledger", "users", "integrations", "ops"],
+  host: ["overview", "functions", "families", "stage", "review", "album", "vendors", "readiness", "tasks", "ledger", "integrations"],
+  coordinator: ["overview", "functions", "families", "stage", "review", "album", "vendors", "readiness", "tasks"],
+  stage_manager: ["stage", "readiness", "tasks"],
+  kitchen: ["kitchen", "readiness", "tasks"],
+  photographer: ["photographer", "review", "album", "readiness", "tasks"],
+  finance: ["vendors", "readiness", "tasks", "ledger"],
 };
 
 /** A page and an API each role must NOT reach (403 / access-denied). */

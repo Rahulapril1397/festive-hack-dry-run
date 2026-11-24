@@ -2,9 +2,11 @@ import "server-only";
 import { getSession, requirePermission, type Session } from "@/lib/authz";
 import { guestFromCookie } from "@/domain/rsvp/service";
 import { AppError } from "@/lib/errors";
+import type { AppLanguage } from "@/lib/sarvam/languages";
+import { staffActive } from "./scope";
 
-export type GuestCaller = { kind: "guest"; familyId: string; weddingId: string; language: "en" | "hi"; linkKey: string; events: { id: string; name: string }[]; weddingName: string };
-export type StaffCaller = { kind: "staff"; session: Session; weddingId: string; weddingName: string; language: "en" | "hi" };
+export type GuestCaller = { kind: "guest"; familyId: string; weddingId: string; language: AppLanguage; linkKey: string; events: { id: string; name: string }[]; weddingName: string };
+export type StaffCaller = { kind: "staff"; session: Session; weddingId: string; weddingName: string; language: AppLanguage };
 export type Caller = StaffCaller | GuestCaller;
 
 /**
@@ -15,6 +17,7 @@ export async function resolveCaller(mode: "staff" | "guest"): Promise<Caller> {
   if (mode === "staff") {
     const s = await getSession();
     await requirePermission(s, "assistant.use", s?.weddingId ?? "");
+    if (!staffActive(s!)) throw new AppError("FORBIDDEN", "PinkyBua is not active for your role yet");
     const w = s!.weddings.find((x) => x.id === s!.weddingId);
     return { kind: "staff", session: s!, weddingId: s!.weddingId, weddingName: w?.name ?? "", language: "en" };
   }

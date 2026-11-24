@@ -146,3 +146,18 @@ To roll back across Stage 2, restore the pre-release backup (above) as well.
 9. Finance: add cash + UPI entries; totals correct; export downloads. Kitchen: `/ledger` is denied.
 10. Photographer: calibrate with the stage QR, upload, confirm one candidate.
 11. NudgeBee: signed test recommendation → approve → flag reads back OFF.
+
+
+## Minimal demo release (Stage 3 code, 9-hour plan)
+
+1. **https without a domain** (optional but needed for voice on the public address):
+   `bash deploy/setup-https-endpoints.sh` creates `pehle-aap.endpoints.<project>.cloud.goog` pointing at the static IP
+   (Google Cloud Endpoints DNS). Whether Google issues a managed certificate for that name is **not verified** — check
+   with `bash deploy/setup-https-endpoints.sh --status`; if it never turns Active, show voice from the laptop on localhost.
+2. **Deploy**: `bash deploy/deploy-stage3.sh --domain=<that hostname>` (backup → build → additive migrations → rollout →
+   checks). The jobs scheduler is left off (`--no-jobs`): the demo's tasks are static.
+3. **After https**: `node scripts/set-auth-urls.mjs https://<hostname>` so Supabase sign-in links use it.
+4. **Flagsmith**: create `sarvam_force_fail` (OFF) and `pinkybua_languages` (ON, value 50) in the environment; `voice_calls` stays ON.
+5. **Demo data**: `npx tsx scripts/photo-demo.ts seed <folder>` (needs the demo photos), `npx tsx scripts/pin-demo-families.ts`,
+   and `npx tsx scripts/pregen-translations.ts --langs=hi,bn,ta,te,mr,gu,kn,ml,pa` once.
+6. **Rollback**: `helm rollback pehle-aap <revision> -n prod` (printed by the deploy script). The database changes only add tables and columns.

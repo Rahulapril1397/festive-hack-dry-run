@@ -1,8 +1,9 @@
 import type { Caller } from "./caller";
+import { LANGUAGES } from "@/lib/sarvam/languages";
 
 /** PinkyBua system prompt: role, wedding, date, language, rules, the role's knowledge base. */
 export function buildSystemPrompt(c: Caller, role: string, kb: string, today: string): string {
-  const language = c.language === "hi" ? "Hindi (Devanagari script)" : "English";
+  const language = c.language === "en" ? "English" : `${LANGUAGES[c.language].label}, written in its own native script (never romanised)`;
   const who =
     c.kind === "guest"
       ? "a guest family using their private family link. You only know about this one family."

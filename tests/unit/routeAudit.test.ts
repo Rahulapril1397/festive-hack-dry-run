@@ -15,7 +15,7 @@ describe("route audit (E1 T2)", () => {
     expect(pub).toEqual([
       "GET /api/guest/gifts", "GET /api/guest/status", "GET /api/health", "GET /api/metrics", "GET /api/notifications", "GET /api/tv/announcement/[id]/audio", "GET /api/tv/feed", "GET /api/tv/stream",
       "POST /api/auth/logout", "POST /api/checkin/verify", "POST /api/guest/gifts/[id]/claim", "POST /api/guest/gifts/claims/[id]/release",
-      "POST /api/guest/language", "POST /api/guest/language/dismiss", "POST /api/guest/language/suggest", "POST /api/integrations/nudgebee/recommendation",
+      "POST /api/guest/language", "POST /api/guest/language/suggest", "POST /api/integrations/nudgebee/recommendation",
       "POST /api/jobs/tick", "POST /api/notifications/read", "POST /api/session/wedding", "POST /api/tv/telemetry", "PUT /api/guest/rsvp",
     ]);
   });

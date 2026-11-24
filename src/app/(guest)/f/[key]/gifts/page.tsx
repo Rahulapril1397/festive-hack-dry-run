@@ -4,6 +4,7 @@ import { loadGuest } from "@/domain/rsvp/service";
 import { guestGifts, PRICE_LABEL } from "@/domain/gifts/service";
 import { getT } from "@/i18n";
 import { LanguageSelect } from "@/i18n/LanguageSelect";
+import { allowedLanguages } from "@/domain/rsvp/service";
 import { GiftList } from "./GiftList";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +21,7 @@ export default async function GiftsPage({ params }: { params: Promise<{ key: str
         <Link href={`/f/${g.family.linkKey}/pass`} className="text-sm text-rose-700 underline">
           ← {t("pass.title")}
         </Link>
-        <LanguageSelect value={g.family.language} label={t("language")} />
+        <LanguageSelect value={g.family.language} label={t("language")} options={await allowedLanguages(g.family)} />
       </div>
       <h1 className="font-serif text-3xl font-bold text-rose-900">{t("gifts.title")}</h1>
       <p className="text-sm text-stone-600">{t("gifts.intro")}</p>

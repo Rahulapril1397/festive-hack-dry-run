@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { giftSentence, protect, render, restore, variantFor } from "@/domain/thanks/template";
-import { fromAcceptLanguage, shouldSuggest } from "@/lib/geo/acceptLanguage";
+import { fromAcceptLanguage } from "@/lib/geo/acceptLanguage";
 import { languageAt, stateAt } from "@/lib/geo/stateBounds";
 import { encodeWav } from "@/components/pinkybua/recorder";
 
@@ -34,21 +34,15 @@ describe("language suggestion", () => {
   it("Accept-Language → best enabled language", () => {
     expect(fromAcceptLanguage("hi-IN,hi;q=0.9,en-US;q=0.8")).toBe("hi");
     expect(fromAcceptLanguage("en-GB,en;q=0.9")).toBe("en");
-    expect(fromAcceptLanguage("ta-IN,ta;q=0.9,hi;q=0.5")).toBe("hi"); // Tamil not enabled yet
+    expect(fromAcceptLanguage("ta-IN,ta;q=0.9,hi;q=0.5")).toBe("ta");
+    expect(fromAcceptLanguage("ta-IN,ta;q=0.9,hi;q=0.5", ["en", "hi"])).toBe("hi"); // group A cannot pick Tamil
     expect(fromAcceptLanguage("fr-FR")).toBeNull();
     expect(fromAcceptLanguage(null)).toBeNull();
-  });
-  it("only suggests to families who never chose, haven't dismissed, and see something else", () => {
-    const f = { language: "en" as const, languageSource: "default", hintDismissed: false };
-    expect(shouldSuggest(f, "hi")).toBe("hi");
-    expect(shouldSuggest(f, "en")).toBeNull();
-    expect(shouldSuggest({ ...f, languageSource: "manual" }, "hi")).toBeNull();
-    expect(shouldSuggest({ ...f, hintDismissed: true }, "hi")).toBeNull();
   });
   it("coarse location → state → language (enabled only)", () => {
     expect(stateAt(28.6, 77.2)?.state).toBe("Delhi"); // smallest box wins over Haryana/UP
     expect(languageAt(26.8, 80.9)).toEqual({ state: "Uttar Pradesh", language: "hi", enabled: true }); // Lucknow
-    expect(languageAt(13.1, 80.3)).toMatchObject({ state: "Tamil Nadu", language: "ta", enabled: false }); // Chennai
+    expect(languageAt(13.1, 80.3)).toEqual({ state: "Tamil Nadu", language: "ta", enabled: true }); // Chennai
     expect(languageAt(51.5, -0.1)).toEqual({ state: null, language: null, enabled: false });
   });
 });

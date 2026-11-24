@@ -4,8 +4,8 @@ import { loadGuest } from "@/domain/rsvp/service";
 import { getQueueStatus } from "@/domain/queue";
 import { getT } from "@/i18n";
 import { LanguageSelect } from "@/i18n/LanguageSelect";
+import { allowedLanguages } from "@/domain/rsvp/service";
 import { PassView } from "./PassView";
-import { noteStatusForFamily } from "@/domain/thanks/service";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +17,7 @@ export default async function PassPage({ params, searchParams }: { params: Promi
   const { family, wedding, events } = g;
   const event = events.find((e) => e.id === sp.event) ?? pickDefaultEvent(events);
   const t = await getT(family.language, wedding.id);
-  const [status, note] = await Promise.all([event ? getQueueStatus(family.id, event.id) : Promise.resolve(null), noteStatusForFamily(family.id)]);
+  const status = event ? await getQueueStatus(family.id, event.id) : null;
 
   return (
     <main className="flex flex-col gap-5">
@@ -25,7 +25,7 @@ export default async function PassPage({ params, searchParams }: { params: Promi
         <Link href={`/f/${family.linkKey}`} className="text-sm text-rose-700 underline">
           ← {t("backToInvite")}
         </Link>
-        <LanguageSelect value={family.language} label={t("language")} />
+        <LanguageSelect value={family.language} label={t("language")} options={await allowedLanguages(family)} />
       </div>
       <section className="rounded-2xl bg-rose-800 p-6 text-white shadow">
         <p className="text-sm uppercase tracking-widest text-rose-200">{t("pass.title")}</p>
@@ -49,20 +49,12 @@ export default async function PassPage({ params, searchParams }: { params: Promi
 
       {event && status && <PassView eventId={event.id} initial={status} labels={t.dict()} />}
 
-      <section className="grid grid-cols-2 gap-3">
-        <Link href={`/f/${family.linkKey}/gifts`} className="rounded-xl border border-stone-200 bg-white p-4 text-center hover:border-rose-300" data-testid="pass-gifts">
-          <p className="text-2xl" aria-hidden>
-            🎁
-          </p>
-          <p className="font-medium">{t("gifts.title")}</p>
-        </Link>
-        <Link href={`/f/${family.linkKey}/thanks`} className="relative rounded-xl border border-stone-200 bg-white p-4 text-center hover:border-rose-300" data-testid="pass-thanks">
-          {note.sent && !note.opened && <span className="absolute right-2 top-2 rounded-full bg-rose-700 px-2 text-[10px] font-bold uppercase text-white">{t("thanks.new")}</span>}
-          <p className="text-2xl" aria-hidden>
-            💌
-          </p>
-          <p className="font-medium">{t("pass.thanks")}</p>
-          {!note.sent && <p className="text-xs text-stone-500">{t("comingSoon")}</p>}
+      <section>
+        <Link href={`/f/${family.linkKey}/album`} className="flex items-center justify-center gap-3 rounded-xl border border-stone-200 bg-white p-4 text-center hover:border-rose-300" data-testid="pass-album">
+          <span className="text-2xl" aria-hidden>
+            🖼️
+          </span>
+          <span className="font-medium">{t("pass.album")}</span>
         </Link>
       </section>
 

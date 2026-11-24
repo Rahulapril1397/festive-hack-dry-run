@@ -11,6 +11,7 @@ import { RoleSwitcher } from "./RoleSwitcher";
 import { WeddingProvider, WeddingSelect } from "./WeddingContext";
 import { homeFor, navFor } from "./navConfig";
 import { PinkyBua } from "@/components/pinkybua/PinkyBua";
+import { staffActive } from "@/lib/assistant/scope";
 import { NotificationBell } from "./NotificationBell";
 
 /** Staff chrome: top bar (wedding selector, date, user + role, notifications), role nav, demo banner. */
@@ -63,7 +64,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
             )}
           </div>
         </div>
-        {!blocked && s.permissions.has("assistant.use") && <PinkyBua mode="staff" />}
+        {!blocked && <PinkyBua mode="staff" inactive={!staffActive(s)} />}
       </div>
     </WeddingProvider>
   );

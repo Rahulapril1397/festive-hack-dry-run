@@ -213,3 +213,32 @@ export async function batchesFor(s: Session, eventId: string) {
   const { data } = await db().from("batch").select("id, camera_name, clock_offset_ms, calibrated_at, uploaded_at, photo(count)").eq("event_id", eventId).order("uploaded_at", { ascending: false });
   return data ?? [];
 }
+
+/**
+ * One family's own album: only photos a person confirmed for THIS family, grouped by function
+ * (in function order), with short-lived picture links. Never reads any other family's photos.
+ */
+export async function familyAlbum(familyId: string): Promise<{ eventId: string; eventName: string; photos: { id: string; url: string }[] }[]> {
+  const { data, error } = await db()
+    .from("photo")
+    .select("id, storage_path, corrected_at, batch:batch_id!inner(event:event_id!inner(id, name, starts_at))")
+    .eq("family_id", familyId)
+    .eq("review_status", "matched")
+    .order("corrected_at", { ascending: true, nullsFirst: false })
+    .limit(300);
+  if (error) throw new Error(error.message);
+  const rows = (data ?? []) as unknown as { id: string; storage_path: string; batch: { event: { id: string; name: string; starts_at: string | null } } }[];
+  const paths = rows.map((r) => r.storage_path);
+  const signed = paths.length ? (await db().storage.from(BUCKET).createSignedUrls(paths, THUMB_TTL_S)).data ?? [] : [];
+  const urlFor = new Map(signed.map((x) => [x.path, x.signedUrl]));
+  const groups = new Map<string, { eventId: string; eventName: string; startsAt: string; photos: { id: string; url: string }[] }>();
+  for (const r of rows) {
+    const url = urlFor.get(r.storage_path);
+    if (!url) continue;
+    const ev = r.batch.event;
+    const g = groups.get(ev.id) ?? { eventId: ev.id, eventName: ev.name, startsAt: ev.starts_at ?? "9999", photos: [] };
+    g.photos.push({ id: r.id, url });
+    groups.set(ev.id, g);
+  }
+  return [...groups.values()].sort((a, b) => a.startsAt.localeCompare(b.startsAt)).map(({ eventId, eventName, photos }) => ({ eventId, eventName, photos }));
+}

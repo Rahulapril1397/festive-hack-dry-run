@@ -26,7 +26,8 @@ describe("Sarvam speech-to-text", () => {
   it("maps Sarvam language codes to enabled app languages", () => {
     expect(appLanguageOf("hi-IN")).toBe("hi");
     expect(appLanguageOf("en-IN")).toBe("en");
-    expect(appLanguageOf("ta-IN")).toBeNull();
+    expect(appLanguageOf("ta-IN")).toBe("ta");
+    expect(appLanguageOf("fr-FR")).toBeNull();
     expect(appLanguageOf(null)).toBeNull();
   });
 });

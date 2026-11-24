@@ -1,25 +1,23 @@
 import type { Permission } from "@/lib/authz/catalogue";
 
-/** Left nav per the Host wireframe, plus role homes. `soon` items render <ComingSoon />. */
+/** Left nav for the minimal demo: photo flow, RSVP, four static tiles, admin and integrations. `soon` items render <ComingSoon />. */
 export type NavItem = { key: string; label: string; href: string; permission: Permission; also?: Permission[]; soon?: boolean };
 
 export const NAV: readonly NavItem[] = [
   { key: "overview", label: "Overview", href: "/host", permission: "host.read" },
   { key: "functions", label: "Functions", href: "/host/functions", permission: "host.read" },
-  { key: "families", label: "Families and RSVP", href: "/host/families", permission: "families.read" },
-  { key: "kitchen", label: "Kitchen", href: "/kitchen", permission: "kitchen.read" },
+  { key: "families", label: "Families and RSVP", href: "/host/families", permission: "rsvp.read" },
+  { key: "kitchen", label: "Kitchen", href: "/kitchen", permission: "kitchen.write" },
   { key: "stage", label: "Stage and Queue", href: "/stage", permission: "queue.read" },
   { key: "photographer", label: "Photographer", href: "/photographer", permission: "photos.upload" },
   { key: "review", label: "Photo review", href: "/photographer/review", permission: "photos.review" },
   { key: "album", label: "Album", href: "/host/album", permission: "photos.review" },
-  { key: "ledger", label: "Shagun Ledger", href: "/ledger", permission: "ledger.write", also: ["ledger.read"] },
-  { key: "tasks", label: "Tasks", href: "/tasks", permission: "tasks.read" },
-  { key: "vendors", label: "Vendors", href: "/vendors", permission: "vendors.contacts.read", also: ["vendors.manage", "vendors.commercial.read"] },
-  { key: "gifts", label: "Gift wishlist", href: "/host/gifts", permission: "gifts.manage" },
-  { key: "thank-yous", label: "Thank-yous", href: "/host/thanks", permission: "thanks.manage" },
-  { key: "people", label: "People", href: "/people", permission: "users.manage" },
+  // Static demo tiles (fixed data, see src/lib/demo/staticTiles.ts). The real vendor, task and ledger screens stay unlinked.
+  { key: "vendors", label: "Vendors", href: "/demo/vendors", permission: "vendors.contacts.read", also: ["vendors.manage", "vendors.commercial.read"] },
+  { key: "readiness", label: "Event readiness", href: "/demo/readiness", permission: "tasks.read", also: ["host.read"] },
+  { key: "tasks", label: "Tasks", href: "/demo/tasks", permission: "tasks.read" },
+  { key: "ledger", label: "Gift ledger", href: "/demo/ledger", permission: "ledger.read", also: ["ledger.write"] },
   { key: "users", label: "Users and Roles", href: "/admin", permission: "users.manage" },
-  { key: "jobs", label: "Background jobs", href: "/admin/jobs", permission: "jobs.manage" },
   { key: "integrations", label: "Integrations", href: "/ops/integrations", permission: "integrations.read" },
   { key: "ops", label: "Ops recommendations", href: "/ops/recommendations", permission: "ops.approve" },
 ];
@@ -37,7 +35,7 @@ const ROLE_HOME: Record<string, string> = {
   stage_manager: "/stage",
   kitchen: "/kitchen",
   photographer: "/photographer",
-  finance: "/ledger",
+  finance: "/demo/ledger",
 };
 
 /** Home for the primary role; a custom role lands on its first nav item. */

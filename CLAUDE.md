@@ -18,6 +18,10 @@ Next.js 15 (App Router) · TypeScript strict · Tailwind v4 · Zod · Supabase P
 | `npm run audit:routes` | fails if any route handler neither checks a permission nor calls `publicRoute("why")` (CI) |
 | `npm run grant:super-admin -- <email>` | make an existing staff user a super admin (needs `DATABASE_URL`) |
 | `npx tsx scripts/pregen-tts.ts` | pre-generate TV announcements 1–300 into the private `tts` bucket (costs Sarvam calls) |
+| `npx tsx scripts/pregen-translations.ts [--langs=hi,ta,…]` | translate every screen text (`src/i18n/en.json`) once into the guest languages and store it in `translation` (costs Sarvam calls) |
+| `npx tsx scripts/photo-demo.ts seed <folder> \| reset [--with-events]` | additive demo data for photo matching: stage events around the demo photos' capture times; reset removes the uploaded batch |
+| `npx tsx scripts/pin-demo-families.ts` | pin two demo families to language group A / B and reset their language screen |
+| `bash deploy/deploy-stage3.sh [--domain=HOST]` · `bash deploy/setup-https-endpoints.sh` · `node scripts/set-auth-urls.mjs https://HOST` | minimal-demo release · free `*.endpoints.<project>.cloud.goog` hostname · Supabase sign-in URLs |
 | `bash deploy/gcp-deploy.sh` | one-command production deploy to GKE (see `deploy/README.md`) |
 | `bash deploy/deploy-stage1.sh` / `deploy-stage2.sh` / `rollback-stage2.sh` | deploy tag stage-1 · upgrade to Stage 2 with verification · reverse Stage 2 (data kept) |
 | `node scripts/create-staff-user.mjs <email>` | create a staff login with a generated password (shown once); roles via admin UI |
@@ -54,6 +58,13 @@ Next.js 15 (App Router) · TypeScript strict · Tailwind v4 · Zod · Supabase P
 | `src/app/api/{ledger,photos,host,kitchen}`, `supabase/migrations/02xx` | E3 |
 
 If you need a change in another lane, stop and ask its owner.
+
+## Minimal demo scope (9-hour plan)
+- **PinkyBua** is active for **admin and super admin only** (staff) and for **guests on their family link**; every other staff role sees a greyed "coming soon" button, and `resolveCaller("staff")` refuses them. One topic per audience, in `src/lib/assistant/scope.ts`: staff → `photo_review_counts`, guest → `my_rsvp`. Widening later = add names there. The full tool registry and `allowedFor()` (permissions) are unchanged.
+- **Guest language A/B test.** First screen of a family link = language picker (nothing else until chosen). Group A: English + Hindi; group B: all ten (dropdown for the eight others). The group is assigned by **our app** (`src/domain/rsvp/group.ts`, stable hash of the family id) and saved in `family.language_group`; Flagsmith holds only the split percentage (`pinkybua_languages`, flag value 0–100, OFF = 0). **No guest id is sent to Flagsmith** (identities stay `wedding:<id>:role:<role>`). The chosen language drives screen text, PinkyBua text and Sarvam voice.
+- **Static tiles** (`/demo/vendors|readiness|tasks|ledger`, data in `src/lib/demo/staticTiles.ts`): fixed invented data, Preview label, Add button says "Demo only". The real vendor, task, wishlist, thank-you and ledger screens stay in the repo, unlinked. Menu: `src/components/shell/navConfig.ts`.
+- **Voice**: Sarvam speech-to-text/text-to-speech in PinkyBua. If Sarvam is forced to fail (`SARVAM_FORCE_FAIL=1` or the Flagsmith flag `sarvam_force_fail`) or `voice_calls` is OFF, the widget drops to English text chat. The microphone needs https or localhost.
+- **Family album** `/f/<link key>/album`: only photos a person confirmed for that family, grouped by function. The venue TV announcements stay English/Hindi (`isTvLanguage`).
 
 ## Contracts
 | | Interface | Provider → consumer |

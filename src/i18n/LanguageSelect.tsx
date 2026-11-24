@@ -2,10 +2,10 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { LANGUAGES, ENABLED_LANGUAGES, type AppLanguage } from "@/lib/sarvam/languages";
+import { LANGUAGES, type AppLanguage } from "@/lib/sarvam/languages";
 
 /** Contract C5. Saves the family's language (family.language) and re-renders the page. */
-export function LanguageSelect({ value, label }: { value: AppLanguage; label: string }) {
+export function LanguageSelect({ value, label, options }: { value: AppLanguage; label: string; options: readonly AppLanguage[] }) {
   const router = useRouter();
   const [lang, setLang] = useState(value);
   const [pending, start] = useTransition();
@@ -28,7 +28,7 @@ export function LanguageSelect({ value, label }: { value: AppLanguage; label: st
           start(() => router.refresh());
         }}
       >
-        {ENABLED_LANGUAGES.map((l) => (
+        {options.map((l) => (
           <option key={l} value={l}>
             {LANGUAGES[l].native}
           </option>

@@ -2,12 +2,19 @@ import { z } from "zod";
 import { handle, json } from "@/lib/http";
 import { AppError } from "@/lib/errors";
 import { resolveCaller } from "@/lib/assistant/caller";
-import { MAX_AUDIO_BYTES, runVoice } from "@/lib/assistant/voice";
+import { MAX_AUDIO_BYTES, runVoice, voiceStatus } from "@/lib/assistant/voice";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 const Fields = z.object({ mode: z.enum(["staff", "guest"]), sessionId: z.string().uuid().optional(), speak: z.enum(["0", "1"]).default("1") });
+
+/** Is voice usable? { available, reason }. Same caller check as the chat (assistant.use / family cookie). */
+export const GET = handle(async (req: Request) => {
+  const mode = new URL(req.url).searchParams.get("mode") === "guest" ? "guest" : "staff";
+  await resolveCaller(mode);
+  return json(await voiceStatus(), { headers: { "cache-control": "no-store" } });
+});
 
 /**
  * PinkyBua voice. multipart: mode, sessionId?, speak (0|1), audio (WAV, ≤30 s).

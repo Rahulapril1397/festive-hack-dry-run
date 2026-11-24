@@ -14,6 +14,7 @@
 #   --skip-build                   redeploy the last built image
 #   --super-admin=EMAIL            make this existing staff user a super admin after deploying
 #   --skip-backup                  do not pg_dump the database first (not recommended)
+#   --no-jobs                      do not schedule the background-jobs CronJob (the minimal demo needs none)
 #   BACKUP_DIR=…                   where backups go (default ~/pehle-backups, outside the repo)
 #   --tools-only                   only download helm/kubectl into .deploy/bin
 #   --yes            YES=1
@@ -45,7 +46,7 @@ export KUBECONFIG="$WORK/kubeconfig"
 
 GCP_PROJECT="${GCP_PROJECT:-}"; GCP_REGION="${GCP_REGION:-}"; DOMAIN="${DOMAIN-__unset__}"
 SECRETS_MODE="${SECRETS_MODE:-secretmanager}"; YES="${YES:-0}"; SKIP_BUILD=0; TOOLS_ONLY=0
-SUPER_ADMIN_EMAIL="${SUPER_ADMIN_EMAIL:-}"; SKIP_BACKUP=0; BACKUP_DIR="${BACKUP_DIR:-$HOME/pehle-backups}"
+SUPER_ADMIN_EMAIL="${SUPER_ADMIN_EMAIL:-}"; JOBS_CRON=true; SKIP_BACKUP=0; BACKUP_DIR="${BACKUP_DIR:-$HOME/pehle-backups}"
 for a in "$@"; do
   case "$a" in
     --project=*) GCP_PROJECT="${a#*=}" ;;
@@ -56,6 +57,7 @@ for a in "$@"; do
     --tools-only) TOOLS_ONLY=1 ;;
     --super-admin=*) SUPER_ADMIN_EMAIL="${a#*=}" ;;
     --skip-backup) SKIP_BACKUP=1 ;;
+    --no-jobs) JOBS_CRON=false ;;
     -y|--yes) YES=1 ;;
     -h|--help) sed -n '2,22p' "$0"; exit 0 ;;
     *) echo "Unknown option: $a (try --help)"; exit 2 ;;
@@ -429,7 +431,7 @@ helm upgrade --install "$RELEASE" "$CHART" -n "$NAMESPACE" -f "$CHART/values-pro
   --set serviceAccount.gcpServiceAccount="$([ "$ESO" = true ] && echo "$GSA")" \
   --set externalSecrets.enabled="$ESO" --set externalSecrets.projectId="$GCP_PROJECT" --set externalSecrets.prefix="$SECRET_PREFIX" \
   --set gke.clusterName="$CLUSTER" --set gke.location="$GCP_REGION" \
-  --set externalSecrets.migrateKey=pehle-database-url \
+  --set externalSecrets.migrateKey=pehle-database-url --set jobsCron.enabled="$JOBS_CRON" \
   --timeout 15m \
   ${HELM_SECRET_ARGS[@]+"${HELM_SECRET_ARGS[@]}"} >/dev/null   # pre-upgrade hook Job runs migrations first
 ok "release $RELEASE upgraded (revision $(helm history "$RELEASE" -n "$NAMESPACE" --max 1 -o json | sed -nE 's/.*"revision":([0-9]+).*/\1/p'))"

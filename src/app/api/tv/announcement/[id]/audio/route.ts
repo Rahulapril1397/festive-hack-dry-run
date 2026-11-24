@@ -8,7 +8,7 @@ import { sarvam } from "@/lib/sarvam/client";
 import { audioCache } from "@/lib/sarvam/audioCache";
 import { ttsStore } from "@/lib/sarvam/ttsStore";
 import { announcementAudio } from "@/lib/sarvam/announce";
-import { isAppLanguage } from "@/lib/sarvam/languages";
+import { isTvLanguage } from "@/lib/sarvam/languages";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -40,12 +40,12 @@ export async function GET(req: Request, { params }: Ctx) {
     const { data } = await db().from("queue_entry").select("family:family_id(language)").eq("id", log.queue_entry_id).maybeSingle();
     lang = (data?.family as unknown as { language?: string } | null)?.language ?? null;
   }
-  if (!isAppLanguage(lang)) {
+  if (!isTvLanguage(lang)) {
     const { data } = await db().from("event").select("language").eq("id", log.event_id).maybeSingle();
     lang = data?.language ?? "en";
   }
 
-  const language = isAppLanguage(lang) ? lang : "en";
+  const language = isTvLanguage(lang) ? lang : "en";
   return announcementAudio(log.token_number, language, {
     voiceCallsOn: () => isEnabled("voice_calls"),
     client: sarvam(),

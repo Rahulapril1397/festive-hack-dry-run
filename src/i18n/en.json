@@ -59,5 +59,10 @@
   "lang.locating": "Finding your area…",
   "lang.locationNoMatch": "We couldn't suggest a language for your area.",
   "lang.locationDenied": "Location isn't available on this connection.",
-  "lang.locationPrivacy": "Your location is only used for this suggestion and is not saved."
+  "lang.locationPrivacy": "Your location is only used for this suggestion and is not saved.",
+  "album.title": "Your photos",
+  "album.intro": "These photos were confirmed by the organisers for your family.",
+  "album.empty": "Your photos will appear here once the organisers have confirmed them.",
+  "album.photoAlt": "A photo from the celebration",
+  "pass.album": "Your photos"
 }

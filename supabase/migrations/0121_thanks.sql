@@ -106,7 +106,6 @@ select wedding_id, variant,
 -- Language suggestion (T4): where the family's language came from. 'default' = never chosen.
 alter table family add column if not exists language_source text not null default 'default'
   check (language_source in ('default','host','manual','browser','location'));
-alter table family add column if not exists language_hint_dismissed_at timestamptz;
 
 insert into permission(key, description) values ('thanks.manage', 'Write and send thank-you notes; see A/B results')
 on conflict (key) do update set description = excluded.description;

@@ -3,11 +3,13 @@ import { cache } from "react";
 import { cookies } from "next/headers";
 import { db, rpc } from "@/lib/db/service";
 import { AppError } from "@/lib/errors";
-import { isAppLanguage, type AppLanguage } from "@/lib/sarvam/languages";
+import { isAppLanguage, languagesFor, type AppLanguage, type LanguageGroup } from "@/lib/sarvam/languages";
+import { languageSplitPct } from "@/lib/flags/split";
+import { groupFor } from "./group";
 import { GUEST_COOKIE, verifyGuestCookie } from "./guestCookie";
 import type { RsvpInputT } from "./schema";
 
-export type GuestFamily = { id: string; name: string; language: AppLanguage; weddingId: string; linkKey: string; token: number | null; languageSource: string; hintDismissed: boolean };
+export type GuestFamily = { id: string; name: string; language: AppLanguage; weddingId: string; linkKey: string; token: number | null; languageSource: string; languageGroup: LanguageGroup | null };
 export type GuestWedding = {
   id: string;
   name: string;
@@ -25,7 +27,7 @@ export const loadGuest = cache(async (linkKey: string) => {
   if (!/^[A-Za-z0-9_-]{8,64}$/.test(linkKey)) return null;
   const { data: f } = await db()
     .from("family")
-    .select("id, name, language, wedding_id, link_key, token_number, language_source, language_hint_dismissed_at")
+    .select("id, name, language, wedding_id, link_key, token_number, language_source, language_group")
     .eq("link_key", linkKey)
     .maybeSingle();
   if (!f) return null;
@@ -43,7 +45,7 @@ export const loadGuest = cache(async (linkKey: string) => {
     linkKey: f.link_key,
     token: f.token_number,
     languageSource: f.language_source ?? "default",
-    hintDismissed: !!f.language_hint_dismissed_at,
+    languageGroup: f.language_group === "A" || f.language_group === "B" ? f.language_group : null,
   };
   const wedding: GuestWedding = {
     id: w.id,
@@ -83,8 +85,16 @@ export async function setFamilyLanguage(familyId: string, language: AppLanguage,
   if (error) throw new Error(error.message);
 }
 
-/** "Not now" on the language suggestion banner. */
-export async function dismissLanguageHint(familyId: string) {
-  const { error } = await db().from("family").update({ language_hint_dismissed_at: new Date().toISOString() }).eq("id", familyId);
-  if (error) throw new Error(error.message);
+/** The family's A/B group, assigning and saving it on first use (hash of the family id vs the Flagsmith split). */
+export async function ensureLanguageGroup(f: Pick<GuestFamily, "id" | "languageGroup">): Promise<LanguageGroup> {
+  if (f.languageGroup) return f.languageGroup;
+  const group = groupFor(f.id, await languageSplitPct());
+  await db().from("family").update({ language_group: group }).eq("id", f.id).is("language_group", null);
+  return group;
+}
+
+/** Languages this family may pick (group A: English and Hindi; group B: all ten), always including their current one. */
+export async function allowedLanguages(f: Pick<GuestFamily, "id" | "languageGroup" | "language">): Promise<AppLanguage[]> {
+  const list = [...languagesFor(await ensureLanguageGroup(f))];
+  return list.includes(f.language) ? list : [...list, f.language];
 }
