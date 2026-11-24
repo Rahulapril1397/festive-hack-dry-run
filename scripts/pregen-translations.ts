@@ -16,6 +16,18 @@ const langs = arg("langs", ENABLED_LANGUAGES.filter((l) => l !== "en").join(",")
 const supa = createClient(must("SUPABASE_URL") as string, must("SUPABASE_SERVICE_ROLE_KEY") as string, { auth: { persistSession: false } });
 const sarvam = createSarvamClient({ apiKey: must("SARVAM_API_KEY") as string, apiUrl: process.env.SARVAM_API_URL || undefined, timeoutMs: 15_000, allowMock: false });
 
+/** Sarvam rate-limits bursts (HTTP 429): retry with a growing pause. */
+async function translateWithRetry(source: string, lang: AppLanguage): Promise<string> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await sarvam.translate(source, lang);
+    } catch (e) {
+      if (attempt >= 5 || !/429/.test(String((e as Error).message))) throw e;
+      await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
+    }
+  }
+}
+
 async function main() {
   const only = arg("wedding", "");
   const { data: weddings } = await (only ? supa.from("wedding").select("id, invitation_text").eq("id", only) : supa.from("wedding").select("id, invitation_text"));
@@ -27,10 +39,11 @@ async function main() {
       const done = new Set((have ?? []).map((r) => r.source_text));
       const todo = sources.filter((s) => !done.has(s));
       skipped += sources.length - todo.length;
-      for (let i = 0; i < todo.length; i += 4) {
-        await Promise.all(todo.slice(i, i + 4).map(async (source) => {
+      for (let i = 0; i < todo.length; i += 2) {
+        await new Promise((r) => setTimeout(r, 400));
+        await Promise.all(todo.slice(i, i + 2).map(async (source) => {
           try {
-            const text = await sarvam.translate(source, lang);
+            const text = await translateWithRetry(source, lang);
             const { error } = await supa.from("translation").upsert({ wedding_id: w.id, language: lang, source_text: source, text }, { onConflict: "wedding_id,language,source_text", ignoreDuplicates: true });
             if (error) throw error;
             made++;

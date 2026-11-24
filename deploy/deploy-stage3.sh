@@ -83,7 +83,7 @@ check "invalid family link page"       "200 404"     "$APP/f/not-a-real-key-123"
 check "admin API needs sign-in"        "401 403"     "$APP/api/admin/users"
 check "PinkyBua voice needs a caller"  "401 403"     "$APP/api/assistant/voice?mode=staff"
 check "demo tile needs sign-in"        "302 307 308" "$APP/demo/vendors"
-check "jobs tick needs its token"      "403"         "$APP/api/jobs/tick" POST
+check "jobs tick needs its token"      "403 411"     "$APP/api/jobs/tick" POST
 echo "$ok passed, $bad failed"
 
 say "4. Manual smoke (details: the plan's acceptance checklist)"

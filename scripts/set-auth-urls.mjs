@@ -18,7 +18,7 @@ if (!base || !/^https?:\/\/[^/\s]+$/.test(base)) {
   process.exit(2);
 }
 const env = Object.fromEntries(
-  readFileSync(".env.local", "utf8").split("\n").filter((l) => /^[A-Z_]+=/.test(l)).map((l) => [l.slice(0, l.indexOf("=")), l.slice(l.indexOf("=") + 1).replace(/\s+#.*$/, "").trim()]),
+  readFileSync(".env.local", "utf8").split("\n").filter((l) => /^[A-Z_]+=/.test(l)).map((l) => [l.slice(0, l.indexOf("=")), l.slice(l.indexOf("=") + 1).replace(/\s+#.*$/, "").trim().replace(/^"|"$/g, "")]),
 );
 const ref = /^https:\/\/([a-z0-9]+)\.supabase\.co/.exec(env.SUPABASE_URL ?? "")?.[1];
 const token = env.SUPABASE_ACCESS_TOKEN;
