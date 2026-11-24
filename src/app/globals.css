@@ -102,3 +102,6 @@ h1 { @apply text-rose-800; }
 
 /* Form controls keep dark text even inside the maroon header */
 select, input, textarea { color: var(--color-stone-900); }
+
+/* Lining figures for numbers in the display serif (old-style figures read oddly in totals) */
+h1, h2, h3, .font-display { font-variant-numeric: lining-nums; }

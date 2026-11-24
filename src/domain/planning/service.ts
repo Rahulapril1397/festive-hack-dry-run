@@ -4,6 +4,9 @@ import { AppError } from "@/lib/errors";
 import type { CreateRoomsInput as CreateRoomsT, PickupInput as PickupT, SettingsInput as SettingsT } from "@/contracts/planning";
 import { arrivalSlots, dayTotals, foodSplit, housekeeping, pickupPoint, roomsNeeded, vehiclePlan, withDefaults, type Arrival, type FoodSplit, type PlanSettingsT } from "./calc";
 
+/** A one-to-one embed (room_allocation has the room as its key) comes back as an object, a one-to-many as an array. */
+const many = <T,>(v: T | T[] | null | undefined): T[] => (v == null ? [] : Array.isArray(v) ? v : [v]);
+
 /** PostgREST caps a response at 1000 rows: read big tables a page at a time. */
 async function all<T>(page: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>): Promise<T[]> {
   const out: T[] = [];
@@ -85,10 +88,10 @@ export async function planningOverview(weddingId: string) {
   });
 
   const slots = arrivalSlots(arrivals);
-  const allocated = rooms.filter((r) => (r.allocation as unknown[] | null)?.length);
+  const allocated = rooms.filter((r) => many(r.allocation as unknown).length);
   const roomsNeededTotal = [...people.values()].reduce((n, p) => n + roomsNeeded(p.people, info.settings.roomCapacity), 0);
   const peopleInRooms = (() => {
-    const fams = new Set(allocated.flatMap((r) => ((r.allocation as { family_id: string }[]) ?? []).map((x) => x.family_id)));
+    const fams = new Set(allocated.flatMap((r) => many(r.allocation as { family_id: string } | { family_id: string }[] | null).map((x) => x.family_id)));
     return [...fams].reduce((n, id) => n + (people.get(id)?.people ?? 0), 0);
   })();
   const peak = Math.max(0, ...functions.map((f) => f.people));
@@ -113,10 +116,11 @@ export async function roomsView(weddingId: string) {
     peopleByFamily(weddingId),
   ]);
   if (error) throw new Error(error.message);
-  const rows: RoomRow[] = ((rooms ?? []) as unknown as (Omit<RoomRow, "familyId" | "family"> & { allocation: { family_id: string; family: { name: string } | null }[] | null })[]).map((r) => ({
-    id: r.id, block: r.block, floor: r.floor, label: r.label, capacity: r.capacity, beds: r.beds,
-    familyId: r.allocation?.[0]?.family_id ?? null, family: r.allocation?.[0]?.family?.name ?? null,
-  }));
+  type Alloc = { family_id: string; family: { name: string } | null };
+  const rows: RoomRow[] = ((rooms ?? []) as unknown as (Omit<RoomRow, "familyId" | "family"> & { allocation: Alloc | Alloc[] | null })[]).map((r) => {
+    const a = many(r.allocation)[0];
+    return { id: r.id, block: r.block, floor: r.floor, label: r.label, capacity: r.capacity, beds: r.beds, familyId: a?.family_id ?? null, family: a?.family?.name ?? null };
+  });
   const families: FamilyRoomRow[] = [...people.values()]
     .map((p) => ({ familyId: p.family_id, name: p.name, people: p.people, roomsNeeded: roomsNeeded(p.people, info.settings.roomCapacity), rooms: rows.filter((r) => r.familyId === p.family_id).map(roomName) }))
     .sort((a, b) => a.name.localeCompare(b.name));
