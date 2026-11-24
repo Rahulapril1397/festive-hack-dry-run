@@ -48,13 +48,20 @@ function ActivePinkyBua({ mode, language = "en" }: { mode: "staff" | "guest"; la
   const [speak, setSpeak] = useState(true);
   const speakRef = useRef(true);
   speakRef.current = speak; // read by the auto-stop timer
-  useEffect(() => end.current?.scrollIntoView({ block: "end" }), [msgs, busy]);
+  useEffect(() => {
+    end.current?.scrollIntoView({ block: "end" }); // a block body: newer browsers return a Promise here, which React rejects as an effect result
+  }, [msgs, busy]);
   useEffect(() => {
     if (!rec) return;
     const t = setInterval(() => setNow(Date.now()), 250);
     return () => clearInterval(t);
   }, [rec]);
-  useEffect(() => () => recording.current?.cancel(), []);
+  useEffect(
+    () => () => {
+      recording.current?.cancel();
+    },
+    [],
+  );
 
   const checkVoice = async (): Promise<boolean> => {
     const r = await fetch(`/api/assistant/voice?mode=${mode}`, { cache: "no-store" }).catch(() => null);
@@ -81,7 +88,7 @@ function ActivePinkyBua({ mode, language = "en" }: { mode: "staff" | "guest"; la
   };
   const addReply = (body: Reply) => {
     sessionId.current = body.sessionId;
-    setMsgs((m) => [...m, { from: "bua", text: body.text, proposed: body.proposedAction, state: body.proposedAction ? "pending" : undefined, audio: body.audio ?? undefined }]);
+    setMsgs((m) => [...m, { from: "bua", text: body.text.replace(/\*\*/g, ""), proposed: body.proposedAction, state: body.proposedAction ? "pending" : undefined, audio: body.audio ?? undefined }]);
   };
 
   async function toggleMic() {
