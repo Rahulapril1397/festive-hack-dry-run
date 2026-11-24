@@ -1,22 +1,104 @@
 @import "tailwindcss";
 
+/* Indian-wedding palette. The whole app already uses rose / amber / stone, so re-pointing the
+   scales re-themes every screen: rose = kumkum & maroon, amber = marigold & gold, stone = warm
+   sandalwood neutrals on an ivory ground. */
+@theme {
+  --font-display: "Cormorant Garamond", "Playfair Display", Georgia, serif;
+  --font-serif: "Cormorant Garamond", Georgia, serif;
+
+  --color-rose-50: #fdf3f1;
+  --color-rose-100: #fbe3df;
+  --color-rose-200: #f5c3bc;
+  --color-rose-300: #e99a90;
+  --color-rose-400: #d96a62;
+  --color-rose-500: #c04040;
+  --color-rose-600: #a62430;
+  --color-rose-700: #8a1a2b;
+  --color-rose-800: #6e1424;
+  --color-rose-900: #520e1b;
+  --color-rose-950: #330910;
+
+  --color-amber-50: #fff9e8;
+  --color-amber-100: #ffefc4;
+  --color-amber-200: #ffdf8a;
+  --color-amber-300: #fbc94a;
+  --color-amber-400: #f4b01c;
+  --color-amber-500: #e0950d;
+  --color-amber-600: #bf7608;
+  --color-amber-700: #985a0a;
+  --color-amber-800: #7a470d;
+  --color-amber-900: #603810;
+  --color-amber-950: #3b2108;
+
+  --color-stone-50: #fcf7ee;
+  --color-stone-100: #f6ecdb;
+  --color-stone-200: #ead9bd;
+  --color-stone-300: #d8c19c;
+  --color-stone-400: #b59e78;
+  --color-stone-500: #7d6a52;
+  --color-stone-600: #655443;
+  --color-stone-700: #4e4036;
+  --color-stone-800: #3a2e27;
+  --color-stone-900: #2a201b;
+  --color-stone-950: #1a1310;
+}
+
 :root {
   color-scheme: light;
+  --gold: #c9961a;
+  --gold-soft: #f1d27a;
 }
 
 body {
-  @apply bg-stone-50 text-stone-900 antialiased;
+  @apply text-stone-900 antialiased;
+  background-color: var(--color-stone-50);
+  /* faint paisley-dot lattice */
+  background-image:
+    radial-gradient(circle at 20px 20px, rgb(201 150 26 / 0.07) 2px, transparent 3px),
+    radial-gradient(circle at 0 0, rgb(138 26 43 / 0.04) 1px, transparent 2px);
+  background-size: 40px 40px;
+}
+
+h1, h2 {
+  font-family: var(--font-display);
+  letter-spacing: 0.01em;
+}
+h1 { @apply text-rose-800; }
+
+/* Marigold garland (toran) strip */
+@utility toran {
+  height: 12px;
+  background-image:
+    radial-gradient(circle at 10px 4px, #f4b01c 0 4px, #e0750d 4.5px 5.5px, transparent 6px),
+    radial-gradient(circle at 20px 6px, #c9961a 0 2px, transparent 2.5px);
+  background-size: 20px 12px;
+  background-repeat: repeat-x;
+}
+/* Gold double rule */
+@utility gold-rule {
+  border-bottom: 3px double var(--gold);
+}
+/* Card with a gold hairline and soft shadow */
+@utility card {
+  @apply rounded-2xl border bg-white/90 shadow-sm;
+  border-color: var(--gold-soft);
 }
 
 @utility btn {
   @apply inline-flex items-center justify-center rounded-lg px-4 py-2 font-semibold transition disabled:cursor-not-allowed disabled:opacity-40;
 }
 @utility btn-primary {
-  @apply btn bg-rose-700 text-white hover:bg-rose-800;
+  @apply btn bg-rose-700 text-amber-50 hover:bg-rose-800;
+  box-shadow: inset 0 0 0 1px var(--gold), 0 1px 2px rgb(82 14 27 / 0.25);
 }
 @utility btn-secondary {
-  @apply btn border border-stone-300 bg-white hover:bg-stone-100;
+  @apply btn border bg-white text-rose-900 hover:bg-amber-50;
+  border-color: var(--gold-soft);
 }
 @utility input {
-  @apply w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-lg outline-none focus:border-rose-600 focus:ring-2 focus:ring-rose-200;
+  @apply w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-lg outline-none focus:border-rose-600 focus:ring-2 focus:ring-amber-200;
 }
+
+/* Form controls keep dark text even inside the maroon header */
+select, input, textarea { color: var(--color-stone-900); }

@@ -54,10 +54,11 @@ export function LanguagePicker({ languages, suggested, couple }: { languages: re
   return (
     <main className="flex min-h-[70dvh] flex-col justify-center gap-6 text-center" data-testid="language-picker">
       <div>
-        <p className="text-sm uppercase tracking-widest text-rose-600">{BOTH("hello")}</p>
-        <h1 className="mt-2 font-serif text-3xl font-bold text-rose-900">{couple}</h1>
+        <p className="text-4xl" aria-hidden>🪔</p>
+        <p className="mt-1 text-sm uppercase tracking-widest text-rose-600">{BOTH("hello")}</p>
+        <h1 className="mt-2 font-display text-5xl font-bold text-rose-900">{couple}</h1>
       </div>
-      <section className="rounded-2xl border border-rose-200 bg-white p-6 shadow-sm">
+      <section className="card border-amber-300 p-6">
         <h2 className="text-lg font-semibold">{BOTH("choose")}</h2>
         <div className="mt-4 grid gap-3">
           {buttons.map((l) => (

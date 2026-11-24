@@ -26,7 +26,8 @@ export default async function GuestLayout({ children, params }: { children: Reac
   const languages = needsLanguage ? await allowedLanguages(g.family) : [];
   const suggested = needsLanguage ? fromAcceptLanguage((await headers()).get("accept-language"), languages) : null;
   return (
-    <div className="min-h-dvh bg-gradient-to-b from-rose-50 to-stone-50">
+    <div className="min-h-dvh bg-gradient-to-b from-rose-100 via-amber-50 to-stone-50">
+      <div className="toran" aria-hidden />
       <DemoBanner show={g.wedding.isDemo} />
       <div className="mx-auto max-w-md px-4 pb-24 pt-6">
         {needsLanguage ? <LanguagePicker languages={languages} suggested={suggested ?? (languages.includes(g.family.language) && g.family.language !== "en" ? g.family.language : null)} couple={g.wedding.coupleNames ?? g.wedding.name} /> : children}

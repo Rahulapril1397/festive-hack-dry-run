@@ -11,9 +11,14 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   const safeNext = next?.startsWith("/") && !next.startsWith("//") ? next : "/";
   if (await getSession()) redirect(safeNext);
   return (
-    <main className="mx-auto max-w-sm p-8">
-      <h1 className="mb-6 text-2xl font-bold text-rose-800">Staff sign in</h1>
+    <main className="mx-auto mt-10 max-w-sm overflow-hidden rounded-2xl border border-amber-300 bg-white/90 shadow-md">
+      <div className="toran" aria-hidden />
+      <div className="p-8">
+      <p className="text-center text-3xl" aria-hidden>🪔</p>
+      <h1 className="mb-1 text-center text-4xl font-bold text-rose-800">Pehle Aap</h1>
+      <p className="mb-6 text-center text-sm tracking-widest text-amber-700">STAFF SIGN IN · <span lang="hi">स्वागतम्</span></p>
       <LoginForm supabase={publicSupabaseConfig()} next={safeNext} quick={await quickLoginUsers()} />
+      </div>
     </main>
   );
 }

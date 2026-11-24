@@ -14,7 +14,7 @@ export function SideNav({ items }: { items: NavItem[] }) {
           key={i.key}
           href={i.href}
           data-testid={`nav-${i.key}`}
-          className={`whitespace-nowrap rounded-lg px-3 py-2 text-sm ${isActive(i.href) ? "bg-rose-100 font-semibold text-rose-900" : "text-stone-700 hover:bg-stone-100"}`}
+          className={`whitespace-nowrap rounded-lg px-3 py-2 text-sm ${isActive(i.href) ? "border-l-4 border-amber-500 bg-rose-100 font-semibold text-rose-900" : "border-l-4 border-transparent text-stone-700 hover:bg-amber-100"}`}
         >
           {i.label}
           {i.soon && <span className="ml-2 rounded bg-stone-200 px-1 text-[10px] uppercase text-stone-600">soon</span>}

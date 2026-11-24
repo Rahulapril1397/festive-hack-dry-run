@@ -29,28 +29,29 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
     <WeddingProvider weddingId={s.weddingId} weddings={s.weddings}>
       <div className="flex min-h-dvh flex-col">
         <DemoBanner show={!!wedding?.is_demo} />
-        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 bg-white px-4 py-2">
+        <div className="toran" aria-hidden />
+        <header className="gold-rule flex flex-wrap items-center justify-between gap-3 bg-rose-800 px-4 py-2 text-amber-50">
           <div className="flex items-center gap-3">
-            <Link href={homeFor(s.role, s.permissions)} className="font-bold text-rose-800">
-              Pehle Aap
+            <Link href={homeFor(s.role, s.permissions)} className="font-display text-2xl font-bold tracking-wide text-amber-200">
+              🪔 Pehle Aap <span lang="hi" className="ml-1 text-lg font-semibold text-amber-100/90">पहले आप</span>
             </Link>
             <WeddingSelect />
-            {wedding?.wedding_date && <span className="hidden text-sm text-stone-500 sm:inline">{new Date(wedding.wedding_date).toLocaleDateString("en-IN", { dateStyle: "medium" })}</span>}
+            {wedding?.wedding_date && <span className="hidden text-sm text-amber-100/80 sm:inline">{new Date(wedding.wedding_date).toLocaleDateString("en-IN", { dateStyle: "medium" })}</span>}
           </div>
           <div className="flex items-center gap-3 text-sm">
             {!blocked && <NotificationBell />}
-            <span className="hidden text-stone-600 sm:inline">{user?.display_name ?? user?.email}</span>
-            <span className="rounded bg-stone-100 px-2 py-0.5" data-testid="current-role">
+            <span className="hidden text-amber-100 sm:inline">{user?.display_name ?? user?.email}</span>
+            <span className="rounded bg-amber-200 px-2 py-0.5 font-semibold text-rose-900" data-testid="current-role">
               {s.role || "no role"}
             </span>
             {quick && <RoleSwitcher supabase={publicSupabaseConfig()} users={quick.users} currentEmail={user?.email ?? null} password={quick.password} />}
             <form action="/api/auth/logout" method="post">
-              <button className="underline">Sign out</button>
+              <button className="underline decoration-amber-300 underline-offset-2">Sign out</button>
             </form>
           </div>
         </header>
         <div className="flex flex-1 flex-col md:flex-row">
-          <aside className="border-b border-stone-200 bg-white md:w-56 md:border-b-0 md:border-r">
+          <aside className="border-b border-stone-200 bg-amber-50/70 md:w-56 md:border-b-0 md:border-r">
             <SideNav items={navFor(s.permissions)} />
           </aside>
           <div className="min-w-0 flex-1">
