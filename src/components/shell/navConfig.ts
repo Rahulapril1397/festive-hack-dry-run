@@ -6,6 +6,9 @@ export type NavItem = { key: string; label: string; href: string; permission: Pe
 export const NAV: readonly NavItem[] = [
   { key: "overview", label: "Overview", href: "/host", permission: "host.read" },
   { key: "functions", label: "Functions", href: "/host/functions", permission: "host.read" },
+  { key: "planning", label: "Planning", href: "/host/planning", permission: "planning.read" },
+  { key: "rooms", label: "Rooms", href: "/host/rooms", permission: "planning.read" },
+  { key: "transport", label: "Transport", href: "/host/transport", permission: "planning.read" },
   { key: "families", label: "Families and RSVP", href: "/host/families", permission: "rsvp.read" },
   { key: "kitchen", label: "Kitchen", href: "/kitchen", permission: "kitchen.write" },
   { key: "stage", label: "Stage and Queue", href: "/stage", permission: "queue.read" },
@@ -13,6 +16,7 @@ export const NAV: readonly NavItem[] = [
   { key: "review", label: "Photo review", href: "/photographer/review", permission: "photos.review" },
   { key: "album", label: "Album", href: "/host/album", permission: "photos.review" },
   // Static demo tiles (fixed data, see src/lib/demo/staticTiles.ts). The real vendor, task and ledger screens stay unlinked.
+  { key: "vendor-portal", label: "My bookings", href: "/vendor", permission: "vendor.portal" },
   { key: "vendors", label: "Vendors", href: "/demo/vendors", permission: "vendors.contacts.read", also: ["vendors.manage", "vendors.commercial.read"] },
   { key: "readiness", label: "Event readiness", href: "/demo/readiness", permission: "tasks.read", also: ["host.read"] },
   { key: "tasks", label: "Tasks", href: "/demo/tasks", permission: "tasks.read" },

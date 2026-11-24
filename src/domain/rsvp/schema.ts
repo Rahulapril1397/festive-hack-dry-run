@@ -25,6 +25,7 @@ export const ProfileInput = z.object({
   travelMode: z.preprocess(blank, z.enum(TRAVEL_MODES).nullable()),
   travelNumber: z.preprocess(blank, z.string().trim().max(12).regex(/^[A-Za-z0-9 -]+$/, "Letters, digits, space and dash only").nullable()),
   arrivalAt: z.preprocess(blank, z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/).nullable()),
+  departureAt: z.preprocess(blank, z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/).nullable()),
   arrivingCount: z.preprocess(blank, z.number().int().min(0).max(30).nullable()),
   foodPref: z.preprocess(blank, z.enum(FOOD_PREFS).nullable()),
   foodNote: z.preprocess(blank, z.string().trim().max(200).nullable()),

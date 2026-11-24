@@ -112,5 +112,18 @@
   "trip.saving": "Saving…",
   "trip.saved": "Saved — thank you!",
   "trip.invalid": "Please check the details and try again.",
-  "trip.error": "Could not save. Please try again."
+  "trip.error": "Could not save. Please try again.",
+  "trip.departure": "Departure date and time (India time)",
+  "stay.title": "Your stay and pickup",
+  "stay.room": "Your room",
+  "stay.rooms": "Your rooms",
+  "stay.roomPending": "Your room will appear here once the family team allocates it.",
+  "stay.pickupAt": "You will be met at",
+  "stay.driver": "Your driver",
+  "stay.driverCall": "Call driver",
+  "stay.vehicle": "Vehicle",
+  "stay.driverPending": "Your driver's name and number will appear here once assigned.",
+  "stay.venue": "Venue",
+  "stay.block": "Block",
+  "stay.floor": "Floor"
 }

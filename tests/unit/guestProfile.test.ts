@@ -2,15 +2,15 @@ import { describe, expect, it } from "vitest";
 import { ProfileInput } from "@/domain/rsvp/schema";
 import { shapeGuests } from "@/lib/assistant/tools/guests";
 
-const ok = { travelMode: "train", travelNumber: "12951", arrivalAt: "2026-12-11T18:30", arrivingCount: 4, foodPref: "jain", foodNote: "peanut allergy" };
+const ok = { travelMode: "train", travelNumber: "12951", arrivalAt: "2026-12-11T18:30", departureAt: "2026-12-13T10:00", arrivingCount: 4, foodPref: "jain", foodNote: "peanut allergy" };
 
 describe("guest profile input", () => {
   it("accepts a full answer", () => {
     expect(ProfileInput.parse(ok)).toEqual(ok);
   });
   it("treats blank fields as empty, so every field is optional", () => {
-    const r = ProfileInput.parse({ travelMode: "", travelNumber: "  ", arrivalAt: "", arrivingCount: "", foodPref: "", foodNote: "" });
-    expect(r).toEqual({ travelMode: null, travelNumber: null, arrivalAt: null, arrivingCount: null, foodPref: null, foodNote: null });
+    const r = ProfileInput.parse({ travelMode: "", travelNumber: "  ", arrivalAt: "", departureAt: "", arrivingCount: "", foodPref: "", foodNote: "" });
+    expect(r).toEqual({ travelMode: null, travelNumber: null, arrivalAt: null, departureAt: null, arrivingCount: null, foodPref: null, foodNote: null });
   });
   it("rejects unknown modes and foods, odd characters, huge counts and long notes", () => {
     expect(ProfileInput.safeParse({ ...ok, travelMode: "rocket" }).success).toBe(false);
@@ -23,7 +23,7 @@ describe("guest profile input", () => {
     expect(ProfileInput.safeParse({ ...ok, arrivalAt: "tomorrow evening" }).success).toBe(false);
   });
   it("rejects unknown keys' effect: only the six fields survive", () => {
-    expect(Object.keys(ProfileInput.parse({ ...ok, phone: "9876543210" })).sort()).toEqual(["arrivalAt", "arrivingCount", "foodNote", "foodPref", "travelMode", "travelNumber"]);
+    expect(Object.keys(ProfileInput.parse({ ...ok, phone: "9876543210" })).sort()).toEqual(["arrivalAt", "arrivingCount", "departureAt", "foodNote", "foodPref", "travelMode", "travelNumber"]);
   });
 });
 

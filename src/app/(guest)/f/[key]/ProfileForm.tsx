@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-type Profile = { travelMode: string | null; travelNumber: string | null; arrivalAt: string | null; arrivingCount: number | null; foodPref: string | null; foodNote: string | null };
+type Profile = { travelMode: string | null; travelNumber: string | null; arrivalAt: string | null; departureAt: string | null; arrivingCount: number | null; foodPref: string | null; foodNote: string | null };
 type Labels = Record<string, string>;
 
 const MODES = ["train", "flight", "car", "bus", "other"] as const;
@@ -14,6 +14,7 @@ export function ProfileForm({ initial, labels, defaultCount }: { initial: Profil
     travelMode: initial.travelMode ?? "",
     travelNumber: initial.travelNumber ?? "",
     arrivalAt: initial.arrivalAt ?? "",
+    departureAt: initial.departureAt ?? "",
     arrivingCount: initial.arrivingCount ?? defaultCount,
     foodPref: initial.foodPref ?? "",
     foodNote: initial.foodNote ?? "",
@@ -59,6 +60,10 @@ export function ProfileForm({ initial, labels, defaultCount }: { initial: Profil
         <label className="text-sm">
           {labels.arrival}
           <input type="datetime-local" className="input mt-1" value={p.arrivalAt} onChange={(e) => set({ arrivalAt: e.target.value })} data-testid="arrival-at" />
+        </label>
+        <label className="text-sm">
+          {labels.departure}
+          <input type="datetime-local" className="input mt-1" value={p.departureAt} onChange={(e) => set({ departureAt: e.target.value })} data-testid="departure-at" />
         </label>
         <label className="flex items-center justify-between gap-3 text-sm">
           <span>{labels.count}</span>

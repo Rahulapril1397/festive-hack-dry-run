@@ -20,6 +20,8 @@ export const PERMISSIONS = [
   "tasks.read", "tasks.manage", "tasks.update_own",
   "gifts.manage", "thanks.manage",
   "vendors.contacts.read", "vendors.manage", "vendors.commercial.read", "vendors.commercial.write", "vendors.documents.read",
+  // Planning: rooms, drivers, arrivals; a vendor's own bookings
+  "planning.read", "planning.write", "vendor.portal",
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 

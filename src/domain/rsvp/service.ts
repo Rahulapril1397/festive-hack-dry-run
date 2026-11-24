@@ -99,16 +99,17 @@ export async function allowedLanguages(f: Pick<GuestFamily, "id" | "languageGrou
   return list.includes(f.language) ? list : [...list, f.language];
 }
 
-export type GuestProfile = { travelMode: string | null; travelNumber: string | null; arrivalAt: string | null; arrivingCount: number | null; foodPref: string | null; foodNote: string | null };
+export type GuestProfile = { travelMode: string | null; travelNumber: string | null; arrivalAt: string | null; departureAt: string | null; arrivingCount: number | null; foodPref: string | null; foodNote: string | null };
 const IST_MS = 5.5 * 3600_000;
 
 /** The family's trip and food answers; arrival comes back as India local time (YYYY-MM-DDTHH:mm) for the form. */
 export async function loadProfile(familyId: string): Promise<GuestProfile> {
-  const { data } = await db().from("guest_profile").select("travel_mode, travel_number, arrival_at, arriving_count, food_pref, food_note").eq("family_id", familyId).maybeSingle();
+  const { data } = await db().from("guest_profile").select("travel_mode, travel_number, arrival_at, departure_at, arriving_count, food_pref, food_note").eq("family_id", familyId).maybeSingle();
   return {
     travelMode: data?.travel_mode ?? null,
     travelNumber: data?.travel_number ?? null,
     arrivalAt: data?.arrival_at ? new Date(new Date(data.arrival_at).getTime() + IST_MS).toISOString().slice(0, 16) : null,
+    departureAt: data?.departure_at ? new Date(new Date(data.departure_at).getTime() + IST_MS).toISOString().slice(0, 16) : null,
     arrivingCount: data?.arriving_count ?? null,
     foodPref: data?.food_pref ?? null,
     foodNote: data?.food_note ?? null,
@@ -123,6 +124,7 @@ export async function saveProfile(familyId: string, p: ProfileInputT): Promise<G
     travel_mode: p.travelMode,
     travel_number: p.travelNumber ? p.travelNumber.toUpperCase() : null,
     arrival_at: arrival ? arrival.toISOString() : null,
+    departure_at: p.departureAt ? new Date(`${p.departureAt}:00+05:30`).toISOString() : null,
     arriving_count: p.arrivingCount,
     food_pref: p.foodPref,
     food_note: p.foodNote,

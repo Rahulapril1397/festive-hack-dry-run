@@ -5,6 +5,7 @@ import { getT } from "@/i18n";
 import { LanguageSelect } from "@/i18n/LanguageSelect";
 import { allowedLanguages, loadProfile } from "@/domain/rsvp/service";
 import { ProfileForm } from "./ProfileForm";
+import { guestStay } from "@/domain/planning/service";
 import { LANGUAGES, type AppLanguage } from "@/lib/sarvam/languages";
 import { RsvpForm } from "./RsvpForm";
 import { Countdown } from "@/components/guest/Countdown";
@@ -24,6 +25,7 @@ export default async function InvitationPage({ params }: { params: Promise<{ key
   const t = await getT(family.language, wedding.id, invitation ? [invitation] : []);
 
   const profile = await loadProfile(family.id);
+  const stay = await guestStay(family.id, wedding.id, profile.travelMode);
   const expected = Math.max(1, ...rsvps.filter((r) => r.status === "yes").map((r) => r.headcount));
   return (
     <main className="flex flex-col gap-6">
@@ -80,11 +82,41 @@ export default async function InvitationPage({ params }: { params: Promise<{ key
         }}
       />
 
+      <section className="card flex flex-col gap-3 p-5" data-testid="stay-card">
+        <h2 className="text-2xl font-bold text-rose-900">🏡 {t("stay.title")}</h2>
+        {stay.venue && <p className="text-sm text-stone-600">{t("stay.venue")}: <span className="font-semibold text-stone-800">{stay.venue}</span></p>}
+        {stay.rooms.length > 0 ? (
+          <div data-testid="stay-rooms">
+            <p className="text-xs uppercase tracking-widest text-amber-800">{stay.rooms.length > 1 ? t("stay.rooms") : t("stay.room")}</p>
+            <ul className="mt-1 flex flex-wrap gap-2">
+              {stay.rooms.map((r, i) => (
+                <li key={i} className="rounded-xl bg-rose-800 px-4 py-2 text-center text-amber-50">
+                  <p className="font-display text-3xl font-bold leading-none">{r.label}</p>
+                  <p className="text-xs">{[r.block && `${t("stay.block")} ${r.block}`, r.floor && `${t("stay.floor")} ${r.floor}`].filter(Boolean).join(" · ")}</p>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : (
+          <p className="text-sm text-stone-600">{t("stay.roomPending")}</p>
+        )}
+        {stay.pickupPoint && <p className="text-sm">{t("stay.pickupAt")}: <span className="font-semibold">{stay.pickupPoint}</span></p>}
+        {stay.driver ? (
+          <div className="rounded-xl border border-amber-300 bg-amber-50 p-3" data-testid="stay-driver">
+            <p className="text-xs uppercase tracking-widest text-amber-800">{t("stay.driver")}</p>
+            <p className="text-lg font-semibold">{stay.driver.name}{stay.driver.vehicle ? ` · ${t("stay.vehicle")} ${stay.driver.vehicle}` : ""}</p>
+            <a className="btn-primary mt-2 w-full" href={`tel:+91${stay.driver.phone}`}>📞 {t("stay.driverCall")} {stay.driver.phone}</a>
+          </div>
+        ) : (
+          <p className="text-sm text-stone-600">{t("stay.driverPending")}</p>
+        )}
+      </section>
+
       <ProfileForm
         initial={profile}
         defaultCount={expected}
         labels={{
-          title: t("trip.title"), intro: t("trip.intro"), travelHeading: t("trip.travel"), mode: t("trip.mode"),
+          title: t("trip.title"), departure: t("trip.departure"), intro: t("trip.intro"), travelHeading: t("trip.travel"), mode: t("trip.mode"),
           "mode.train": t("trip.mode.train"), "mode.flight": t("trip.mode.flight"), "mode.car": t("trip.mode.car"), "mode.bus": t("trip.mode.bus"), "mode.other": t("trip.mode.other"),
           trainNo: t("trip.trainNo"), flightNo: t("trip.flightNo"), vehicleNo: t("trip.vehicleNo"), arrival: t("trip.arrival"), count: t("trip.count"),
           foodHeading: t("trip.food"), "food.veg": t("trip.food.veg"), "food.non_veg": t("trip.food.non_veg"), "food.jain": t("trip.food.jain"), "food.vegan": t("trip.food.vegan"),
