@@ -41,6 +41,8 @@ describe("guest lookup helpers", () => {
         { function: "Reception", status: "no answer yet", guests: 0 },
       ],
       checkedInTo: ["Reception"],
+      travel: null,
+      food: null,
     });
     expect(rows[1]!.rsvp.every((r) => r.status === "no answer yet")).toBe(true);
     const keys = JSON.stringify(rows);

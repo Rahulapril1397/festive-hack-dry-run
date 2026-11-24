@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import { loadGuest } from "@/domain/rsvp/service";
 import { getT } from "@/i18n";
 import { LanguageSelect } from "@/i18n/LanguageSelect";
-import { allowedLanguages } from "@/domain/rsvp/service";
+import { allowedLanguages, loadProfile } from "@/domain/rsvp/service";
+import { ProfileForm } from "./ProfileForm";
 import { LANGUAGES, type AppLanguage } from "@/lib/sarvam/languages";
 import { RsvpForm } from "./RsvpForm";
 import { Countdown } from "@/components/guest/Countdown";
@@ -22,6 +23,8 @@ export default async function InvitationPage({ params }: { params: Promise<{ key
   const invitation = wedding.invitationText ?? undefined;
   const t = await getT(family.language, wedding.id, invitation ? [invitation] : []);
 
+  const profile = await loadProfile(family.id);
+  const expected = Math.max(1, ...rsvps.filter((r) => r.status === "yes").map((r) => r.headcount));
   return (
     <main className="flex flex-col gap-6">
       <div className="flex justify-end">
@@ -74,6 +77,18 @@ export default async function InvitationPage({ params }: { params: Promise<{ key
           saved: t("rsvp.saved"),
           invalid: t("rsvp.invalid"),
           error: t("rsvp.error"),
+        }}
+      />
+
+      <ProfileForm
+        initial={profile}
+        defaultCount={expected}
+        labels={{
+          title: t("trip.title"), intro: t("trip.intro"), travelHeading: t("trip.travel"), mode: t("trip.mode"),
+          "mode.train": t("trip.mode.train"), "mode.flight": t("trip.mode.flight"), "mode.car": t("trip.mode.car"), "mode.bus": t("trip.mode.bus"), "mode.other": t("trip.mode.other"),
+          trainNo: t("trip.trainNo"), flightNo: t("trip.flightNo"), vehicleNo: t("trip.vehicleNo"), arrival: t("trip.arrival"), count: t("trip.count"),
+          foodHeading: t("trip.food"), "food.veg": t("trip.food.veg"), "food.non_veg": t("trip.food.non_veg"), "food.jain": t("trip.food.jain"), "food.vegan": t("trip.food.vegan"),
+          foodNote: t("trip.foodNote"), foodNoteHint: t("trip.foodNoteHint"), save: t("trip.save"), saving: t("trip.saving"), saved: t("trip.saved"), invalid: t("trip.invalid"), error: t("trip.error"),
         }}
       />
 

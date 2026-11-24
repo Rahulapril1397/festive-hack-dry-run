@@ -53,6 +53,8 @@ export function FamiliesTable({ events, families, can }: { events: Ev[]; familie
               <th className="p-2">Family</th>
               <th className="p-2">Phone</th>
               <th className="p-2">Token</th>
+              <th className="p-2">Travel</th>
+              <th className="p-2">Food</th>
               {events.map((e) => <th key={e.id} className="p-2">{e.name}</th>)}
               {(can.write || can.rsvp) && <th className="p-2" />}
             </tr>
@@ -86,6 +88,21 @@ function FamilyRowView({ f, events, can, editing, onEdit }: { f: FamilyRow; even
         </td>
         <td className="p-2 font-mono text-xs">{f.phoneLast4 ? `••••${f.phoneLast4}` : "—"}</td>
         <td className="p-2">{f.token ?? "—"}</td>
+        <td className="p-2 text-xs" data-testid="trip-cell">
+          {f.trip && (f.trip.mode || f.trip.arrivalAt) ? (
+            <>
+              {[f.trip.mode, f.trip.number].filter(Boolean).join(" ")}
+              {f.trip.count != null && ` · ${f.trip.count} people`}
+              {f.trip.arrivalAt && <div className="text-stone-500">{new Date(f.trip.arrivalAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", dateStyle: "medium", timeStyle: "short" })}</div>}
+            </>
+          ) : (
+            "—"
+          )}
+        </td>
+        <td className="p-2 text-xs">
+          {f.trip?.food ? f.trip.food.replace("_", "-") : "—"}
+          {f.trip?.note && <div className="text-stone-500">{f.trip.note}</div>}
+        </td>
         {events.map((e) => {
           const r = f.rsvp[e.id];
           return (
@@ -143,7 +160,7 @@ function FamilyRowView({ f, events, can, editing, onEdit }: { f: FamilyRow; even
       </tr>
       {editing && (
         <tr className="bg-rose-50">
-          <td colSpan={4 + events.length} className="p-3">
+          <td colSpan={6 + events.length} className="p-3">
             <RsvpEditor family={f} events={events} onSaved={() => { onEdit(); router.refresh(); }} />
           </td>
         </tr>

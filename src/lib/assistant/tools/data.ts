@@ -7,7 +7,7 @@ import { countBuckets, type Bucket } from "@/domain/photos/match";
 import type { Caller } from "../caller";
 import { callerRole } from "../caller";
 import { knowledgeFor, sectionsAbout } from "../kb";
-import { likePattern, matchFunction, parseGuestQuery, shapeGuests, type FamilyRow, type QueueRow, type RsvpRow } from "./guests";
+import { likePattern, matchFunction, parseGuestQuery, shapeGuests, type FamilyRow, type ProfileRow, type QueueRow, type RsvpRow } from "./guests";
 
 type QueueMod = typeof import("@/domain/queue/service");
 type LedgerMod = typeof import("@/domain/ledger/service");
@@ -167,13 +167,13 @@ export async function guestLookup(c: Caller, args: { query?: string; function?: 
   const { data: fams, count, error } = await query;
   if (error) throw new Error(error.message);
   const ids = (fams ?? []).map((f) => f.id as string);
-  const [{ data: rs }, { data: qe }] = ids.length
-    ? await Promise.all([db().from("rsvp").select("family_id, event_id, status, headcount").in("family_id", ids), db().from("queue_entry").select("family_id, event_id, status").in("family_id", ids)])
-    : [{ data: [] }, { data: [] }];
+  const [{ data: rs }, { data: qe }, { data: gp }] = ids.length
+    ? await Promise.all([db().from("rsvp").select("family_id, event_id, status, headcount").in("family_id", ids), db().from("queue_entry").select("family_id, event_id, status").in("family_id", ids), db().from("guest_profile").select("family_id, travel_mode, travel_number, arrival_at, arriving_count, food_pref, food_note").in("family_id", ids)])
+    : [{ data: [] }, { data: [] }, { data: [] }];
   return {
     found: (fams ?? []).length > 0,
     total: count ?? (fams ?? []).length,
     showing: (fams ?? []).length,
-    families: shapeGuests((fams ?? []) as FamilyRow[], (rs ?? []) as RsvpRow[], (qe ?? []) as QueueRow[], events),
+    families: shapeGuests((fams ?? []) as FamilyRow[], (rs ?? []) as RsvpRow[], (qe ?? []) as QueueRow[], events, (gp ?? []) as ProfileRow[]),
   };
 }

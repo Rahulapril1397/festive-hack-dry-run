@@ -67,7 +67,7 @@ export const TOOLS: ToolDef[] = [
   },
   {
     name: "guest_lookup",
-    description: "Guest details: find families by name or token number, or list who is attending, not attending or has not answered a function. Shows each family's token, language, RSVP per function with guest count, and where they checked in. Never returns phone numbers.",
+    description: "Guest details: find families by name or token number, or list who is attending, not attending or has not answered a function. Shows each family's token, language, RSVP per function with guest count, where they checked in, their travel (mode, train or flight number, arrival time, how many people) and food preference. Never returns phone numbers.",
     input: z.object({ query: z.string().max(60).optional(), function: z.string().max(60).optional(), rsvp: z.enum(["yes", "no", "pending"]).optional(), limit: z.number().int().min(1).max(15).optional() }).strict(),
     jsonSchema: obj({
       query: { type: "string", description: "A family name (part of it) or a token number" },

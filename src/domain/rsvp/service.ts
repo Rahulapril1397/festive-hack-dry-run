@@ -7,7 +7,7 @@ import { isAppLanguage, languagesFor, type AppLanguage, type LanguageGroup } fro
 import { languageSplitPct } from "@/lib/flags/split";
 import { groupFor } from "./group";
 import { GUEST_COOKIE, verifyGuestCookie } from "./guestCookie";
-import type { RsvpInputT } from "./schema";
+import type { RsvpInputT, ProfileInputT } from "./schema";
 
 export type GuestFamily = { id: string; name: string; language: AppLanguage; weddingId: string; linkKey: string; token: number | null; languageSource: string; languageGroup: LanguageGroup | null };
 export type GuestWedding = {
@@ -97,4 +97,37 @@ export async function ensureLanguageGroup(f: Pick<GuestFamily, "id" | "languageG
 export async function allowedLanguages(f: Pick<GuestFamily, "id" | "languageGroup" | "language">): Promise<AppLanguage[]> {
   const list = [...languagesFor(await ensureLanguageGroup(f))];
   return list.includes(f.language) ? list : [...list, f.language];
+}
+
+export type GuestProfile = { travelMode: string | null; travelNumber: string | null; arrivalAt: string | null; arrivingCount: number | null; foodPref: string | null; foodNote: string | null };
+const IST_MS = 5.5 * 3600_000;
+
+/** The family's trip and food answers; arrival comes back as India local time (YYYY-MM-DDTHH:mm) for the form. */
+export async function loadProfile(familyId: string): Promise<GuestProfile> {
+  const { data } = await db().from("guest_profile").select("travel_mode, travel_number, arrival_at, arriving_count, food_pref, food_note").eq("family_id", familyId).maybeSingle();
+  return {
+    travelMode: data?.travel_mode ?? null,
+    travelNumber: data?.travel_number ?? null,
+    arrivalAt: data?.arrival_at ? new Date(new Date(data.arrival_at).getTime() + IST_MS).toISOString().slice(0, 16) : null,
+    arrivingCount: data?.arriving_count ?? null,
+    foodPref: data?.food_pref ?? null,
+    foodNote: data?.food_note ?? null,
+  };
+}
+
+export async function saveProfile(familyId: string, p: ProfileInputT): Promise<GuestProfile> {
+  const arrival = p.arrivalAt ? new Date(`${p.arrivalAt}:00+05:30`) : null;
+  if (arrival && Number.isNaN(arrival.getTime())) throw new AppError("BAD_REQUEST", "That arrival time is not valid");
+  const { error } = await db().from("guest_profile").upsert({
+    family_id: familyId,
+    travel_mode: p.travelMode,
+    travel_number: p.travelNumber ? p.travelNumber.toUpperCase() : null,
+    arrival_at: arrival ? arrival.toISOString() : null,
+    arriving_count: p.arrivingCount,
+    food_pref: p.foodPref,
+    food_note: p.foodNote,
+    updated_at: new Date().toISOString(),
+  });
+  if (error) throw new Error(error.message);
+  return loadProfile(familyId);
 }

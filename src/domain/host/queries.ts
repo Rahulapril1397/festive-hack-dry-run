@@ -125,7 +125,7 @@ export async function createEvent(s: Session, input: z.infer<typeof CreateEvent>
 /** Families and RSVP table (families.read). Phone as last 4 digits; link only with families.write. */
 export async function familiesWithRsvp(s: Session, withLinks = false) {
   const [{ data: fams }, { data: events }, { data: checkins }] = await Promise.all([
-    db().from("family").select("id, name, phone, language, token_number, is_walk_in, link_key, headcount_max, rsvp(event_id, status, headcount)").eq("wedding_id", s.weddingId).order("name"),
+    db().from("family").select("id, name, phone, language, token_number, is_walk_in, link_key, headcount_max, rsvp(event_id, status, headcount), guest_profile(travel_mode, travel_number, arrival_at, arriving_count, food_pref, food_note)").eq("wedding_id", s.weddingId).order("name"),
     db().from("event").select("id, name").eq("wedding_id", s.weddingId).order("starts_at"),
     db().from("checkin").select("family_id, event_id, event:event_id!inner(wedding_id)").eq("event.wedding_id", s.weddingId),
   ]);
@@ -141,6 +141,7 @@ export async function familiesWithRsvp(s: Session, withLinks = false) {
       token: f.token_number as number | null,
       isWalkIn: f.is_walk_in as boolean,
       headcountMax: f.headcount_max as number | null,
+      trip: tripOf(f.guest_profile),
       link: withLinks ? familyLink(f.link_key as string) : null,
       checkedIn: checkedIn.get(f.id as string) ?? [],
       rsvp: Object.fromEntries(((f.rsvp ?? []) as { event_id: string; status: string; headcount: number }[]).map((r) => [r.event_id, { status: r.status, headcount: r.headcount }])) as Record<string, { status: string; headcount: number }>,
@@ -148,3 +149,9 @@ export async function familiesWithRsvp(s: Session, withLinks = false) {
   };
 }
 export type FamilyRow = Awaited<ReturnType<typeof familiesWithRsvp>>["families"][number];
+
+export type Trip = { mode: string | null; number: string | null; arrivalAt: string | null; count: number | null; food: string | null; note: string | null };
+function tripOf(raw: unknown): Trip | null {
+  const p = (Array.isArray(raw) ? raw[0] : raw) as { travel_mode: string | null; travel_number: string | null; arrival_at: string | null; arriving_count: number | null; food_pref: string | null; food_note: string | null } | null | undefined;
+  return p ? { mode: p.travel_mode, number: p.travel_number, arrivalAt: p.arrival_at, count: p.arriving_count, food: p.food_pref, note: p.food_note } : null;
+}
